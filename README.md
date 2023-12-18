@@ -57,11 +57,9 @@ The dark theme offers a better experience.
 
 This add-on is validated from V2.1.852 Fooocus version.
 
-Each update is at risk to break the proper functionning of the script.
+Each Fooocus update is at risk to break the proper functionning of this script.
 
 Please contact when broken.
-
-Please share your ideas here by opening discussion.
 
 ## Original idea and work 
 
@@ -70,3 +68,15 @@ The idea and initial work is inspired by @sngazm at https://github.com/lllyasvie
 ## Update log
 
 1.0.0 Initial public release
+- Inline Fooocus UI one click integration
+- The LoRAs Diff display doesn't work with new log.html file format (hope @lllyasviel will not change the log.html file format anymore)
+
+Next 1.0.x will be a more advanced version with :
+
+- Better UI integration in Fooocus UI (work on CSS to optimize size and position)
+- Bouton Next/Previous to navigate between images history on zoom page
+- Download Image button 
+- Download Image button with metadata EXIF prompt auto added
+- Trying to correct LoRAs diff display 
+
+Please share your ideas here by opening discussion. 
