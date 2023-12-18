@@ -47,7 +47,7 @@ This integration will be overwritten every time Fooocus is autoupdated at start.
 To avoid update, you can create a new `run-no-update.bat` with :
 
 ```bash
-.\python_embeded\python.exe -s Fooocus\launch.py --disable-header-check --theme=dark
+.\python_embeded\python.exe -s Fooocus\launch.py --theme=dark
 pause
 ```
 
@@ -56,10 +56,13 @@ The dark theme offers a better experience.
 ## Fooocus Version Compability
 
 This add-on is validated from V2.1.852 Fooocus version.
+
 Each update is at risk to break the proper functionning of the script.
+
 Please contact when broken.
-Please share your ideas here by opening discussion
+
+Please share your ideas here by opening discussion.
 
 ## Original idea and work 
 
-The idea and initial work is inspired by https://github.com/lllyasviel/Fooocus/discussions/693
+The idea and initial work is inspired by @sngazm at https://github.com/lllyasviel/Fooocus/discussions/693
