@@ -66,3 +66,7 @@ Please share your ideas here by opening discussion.
 ## Original idea and work 
 
 The idea and initial work is inspired by @sngazm at https://github.com/lllyasviel/Fooocus/discussions/693
+
+## Update log
+
+1.0.0 Initial public release
