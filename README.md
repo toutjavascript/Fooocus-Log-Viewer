@@ -1,6 +1,7 @@
 # **Fooocus Log Viewer**
 
 Fooocus Log Viewer is an add-on to https://github.com/lllyasviel/Fooocus. It creates a powerfull view of all your generated images and how you made them.
+![Capture d’écran 2023-12-18 à 10 03 24](https://github.com/toutjavascript/Fooocus-Log-Viewer/assets/30899600/9cef6fd4-7da8-4709-8401-b89d20ee1bf7)
 
 ## What you can do with **Fooocus Log Viewer**
 
