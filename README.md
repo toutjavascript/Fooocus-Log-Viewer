@@ -21,7 +21,7 @@ Installation is very easy. No npm nor pip install. Files are in archive and load
 
 ### 1/ First step
 
-Copy the archive files (`viewer.html` and `viewer.js`) in `/outputs/ directory`
+Copy the archive files (`viewer.html` and `viewer.js`) in `/Fooocus/outputs/` directory
 
 You could directly open `viewer.html` with Fooocus localhost server
 Adress looks like http://localhost:7865/file=outputs/viewer.html
@@ -33,7 +33,7 @@ A new deep integration is available. Quite easy to config, with only one file to
 You open `/modules/ui_gradio_extensions.py` file. At line 41, add :
 
 ```python
-head += '<script type="text/javascript" src="file=outputs/viewer.js"></script>\n'
+head += f'<script type="text/javascript" src="file=outputs/viewer.js"></script>\n'
 ```
 
 Quit Fooocus if started and restart `run.bat` to reinit Fooocus
@@ -47,7 +47,7 @@ This integration will be overwritten every time Fooocus is autoupdated at start.
 To avoid update, you can create a new `run-no-update.bat` with :
 
 ```bash
-.\python_embeded\python.exe -s Fooocus\entry_with_update.py --disable-header-check --theme=dark
+.\python_embeded\python.exe -s Fooocus\launch.py --disable-header-check --theme=dark
 pause
 ```
 
