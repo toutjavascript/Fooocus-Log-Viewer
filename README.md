@@ -53,4 +53,13 @@ pause
 
 The dark theme offers a better experience.
 
-Bug report/ideas/discussions on https://github.com/lllyasviel/Fooocus/discussions/693
+## Fooocus Version Compability
+
+This add-on is validated from V2.1.852 Fooocus version.
+Each update is at risk to break the proper functionning of the script.
+Please contact when broken.
+Please share your ideas here by opening discussion
+
+## Original idea and work 
+
+The idea and initial work is inspired by https://github.com/lllyasviel/Fooocus/discussions/693
