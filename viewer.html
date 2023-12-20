@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<!--
+https://github.com/lllyasviel/Fooocus/discussions/693#discussioncomment-7853694
+
+         Created by https://github.com/sngazm
+Modestly updated by https://github.com/toutjavascript
+                    https://www.toutjavascript.com
+
+File Version 2023-12-17/A1
+-->
+
+<html lang="us">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+    crossorigin
+    src="https://unpkg.com/react@18/umd/react.production.min.js"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
+    ></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+
+    <script src="https://cdn.jsdelivr.net/gh/StephanWagner/jBox@v1.3.3/dist/jBox.all.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/gh/StephanWagner/jBox@v1.3.3/dist/jBox.all.min.css" rel="stylesheet">
+  </head>
+
+  <body class="text-white">
+    <div id="app"></div>
+    <script type="text/babel">
+      function App() {
+
+        const [date, setDate] = React.useState(() => {
+          const date = sessionStorage.getItem("viewerDate")
+            ? new Date(sessionStorage.getItem("viewerDate"))
+            : new Date();
+          return date;
+        });
+
+        const [data, setData] = React.useState([]);
+        const [isLoading, setIsLoading] = React.useState(false);
+        const [isCorsError, setIsCorsError] = React.useState(false);
+        const [isNotFoundError, setIsNotFoundError] = React.useState(false);
+        const [autoReload, setAutoReload] = React.useState(() => {
+          const autoReload = sessionStorage.getItem("autoReload")
+            ? sessionStorage.getItem("autoReload") === "true"
+            : false;
+          return autoReload;
+        });
+        React.useEffect(() => {
+          sessionStorage.setItem("autoReload", autoReload.toString());
+        }, [autoReload]);
+
+        const isToday = date.toDateString() === new Date().toDateString();
+        const dateStr = getDateStr(date);
+
+        const handleUpdateDate = (dateStr) => {
+          const [year, month, day] = dateStr
+            .split("-")
+            .map((str) => parseInt(str));
+          setDate(new Date(year, month - 1, day));
+        };
+
+        const goTomorrow = () => {
+          const tomorrow = new Date(date);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          setDate(tomorrow);
+        };
+        const goYesterday = () => {
+          const yesterday = new Date(date);
+          yesterday.setDate(yesterday.getDate() - 1);
+          setDate(yesterday);
+        };
+
+        const fetchData = () => {
+          if (!isToday) {
+            setAutoReload(false);
+          }
+          sessionStorage.setItem("viewerDate", date.toDateString());
+          setIsLoading(true);
+          fetch(`./${dateStr}/log.html`, { cache: "no-store" })
+          .then((response) => response.text())
+          .then((text) => parseLog(text))
+          .then((data) => {
+            const newData = data.data;
+            console.log("newData: ", newData);
+            setData(newData);
+            setIsNotFoundError(false);
+            setIsCorsError(false);
+            setIsLoading(false);
+          })
+          .catch((e) => {
+              // CORS error
+              // console.error(e);
+              console.log(e)
+              if (e.name === "TypeError") {
+                setIsCorsError(true);
+              }
+              if (e.name === "SyntaxError") {
+                setIsNotFoundError(true);
+              }
+              setData(null);
+              setIsLoading(false);
+            });
+            
+        };
+        React.useEffect(fetchData, [date]);
+
+        React.useEffect(() => {
+          if (autoReload) {
+            const interval = setInterval(() => {
+              fetchData();
+            }, 5000);
+            return () => clearInterval(interval);
+          }
+        }, [autoReload]);
+
+        return (
+          <div className="pb-2">
+            <div className="px-4 py-1">
+              <a href="/">Fooocus</a> / Viewer <button className="p-2 m-2 text-xl" onClick={() => goYesterday()}>
+                ◀️
+              </button>
+              <input
+                className="text-gray-900"
+                type="date"
+                value={dateStr}
+                onChange={(e) => {
+                  handleUpdateDate(e.target.value);
+                }}
+              />
+              <button
+                className="p-2 m-2 text-xl"
+                onClick={() => {
+                  goTomorrow();
+                }}
+              >
+                ▶️
+              </button>
+              {isToday ? (
+                <>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={autoReload}
+                      onChange={() => {
+                        console.log("onchange");
+                        if (!autoReload) {
+                          fetchData();
+                        }
+                        setAutoReload(!autoReload);
+                      }}
+                    />{" "}
+                    {isLoading ? (
+                      <span className="text-gray-500">Loading...</span>
+                    ) : (
+                      "Auto Reload"
+                    )}
+                  </label>
+                </>
+              ) : (
+                isLoading && <span className="text-gray-500">Loading...</span>
+              )}
+            </div>
+            {!isLoading && (
+              <>
+                {isCorsError && (
+                  <p className="text-center m-16">
+                    Put this viewer.html file in Fooocus/outputs directory 
+                    <br /> 
+                    <br /> 
+                    
+                    Please access viewer.html from your Fooocus local server.{" "}<br /> 
+                
+                    In most cases, the URL is{" "}<br />
+                    <button class="p-2 shadow-sm bg-purple-500 rounded-md"><a href="http://localhost:7860/file=outputs/viewer.html">
+                      http://localhost:7860/file=outputs/viewer.html
+                    </a></button>{" "}
+                    <br /><br />
+                    or
+                    <br /><br />
+                    <a class="p-2 shadow-sm bg-purple-500 rounded-md" href="http://localhost:7865/file=outputs/viewer.html">
+                      http://localhost:7865/file=outputs/viewer.html
+                    </a>
+                    <br /><br /><br /><br />
+                  </p>
+                  
+                )}
+                {isNotFoundError && (
+                  <p className="text-center m-16">
+                    {dateStr}/all.json Not found.
+                  </p>
+                )}
+              </>
+            )}
+
+            {data && data.length > 0 ? (
+              <ImageViewer dateStr={dateStr} data={data} />
+            ) : (
+              <p className="text-center m-16">No data in this folder 🤔</p>
+            )}
+          </div>
+        );
+      }
+
+      function ImageViewer({ data, dateStr }) {
+        const [mode, setMode] = React.useState("images"); // images, batches
+
+        const [currentPage, setCurrentPage] = React.useState(1);
+        const itemsPerPageSelects = [8, 16, 32, 64, 128];
+        const [itemsPerPage, setItemsPerPage] = React.useState(
+          itemsPerPageSelects[0]
+        );
+        const [asc, setAsc] = React.useState(false);
+        const [showDiff, setShowDiff] = React.useState(false);
+
+        // Init numCols from body width
+        let numCols=2;
+        if ($("body").width()>800) numCols=3;
+        if ($("body").width()>1200) numCols=5;
+        const [numColumns, setNumColumns] = React.useState(numCols);
+
+        // Sort the data based on the title (generated timestamp)
+        const sortedData = [...data].sort((a, b) => {
+          if (asc) {
+            return a.src.localeCompare(b.src);
+          } else {
+            return b.src.localeCompare(a.src);
+          }
+        });
+        const batchData = getBatchData(sortedData);
+
+        React.useEffect(() => {
+          if (currentPage > Math.ceil(data.length / itemsPerPage)) {
+            setCurrentPage(Math.ceil(data.length / itemsPerPage));
+          }
+          imgLoadDetection();
+        }, [itemsPerPage]);
+
+        React.useEffect(() => {
+          setCurrentPage(1);
+          imgLoadDetection();
+        }, [dateStr]);
+
+        React.useEffect(() => {
+          imgLoadDetection();
+        }, [mode, sortedData]);
+
+        // Calculate the range of data for the current page
+        let startIndex, endIndex, numPages, firstImageInPage, lastImageInPage;
+        if (mode === "images") {
+          startIndex = (currentPage - 1) * itemsPerPage;
+          endIndex = startIndex + itemsPerPage;
+          numPages = Math.ceil(data.length / itemsPerPage);
+          firstImageInPage = (currentPage - 1) * itemsPerPage + 1;
+          lastImageInPage = Math.min(currentPage * itemsPerPage, data.length);
+        }
+        if (mode === "batches") {
+          startIndex = batchData[currentPage - 1].startIndex;
+          endIndex = batchData[currentPage - 1].endIndex + 1;
+          numPages = batchData.length;
+          firstImageInPage = startIndex + 1;
+          lastImageInPage = endIndex;
+        }
+
+        const currentBatches = getCurrentBatchData(
+          sortedData,
+          batchData,
+          startIndex,
+          endIndex
+        );
+
+        const pageInfo = {
+          mode,
+          currentPage,
+          setCurrentPage,
+          numPages,
+          numImages: data.length,
+          firstImageInPage,
+          lastImageInPage,
+        };
+
+        const pageData = [];
+        pageData.push(sortedData.slice(startIndex, endIndex));
+        return (
+          <div>
+            <div className="px-4 py-1 flex flex-row flex-wrap justify-between">
+              <div className="sm:basis-1/2 basis-full">
+                <div className="">
+                  Mode:{" "}
+                  {mode === "images" ? (
+                    <span className="font-bold cursor-pointer">Images</span>
+                  ) : (
+                    <span className="cursor-pointer" onClick={() => setMode("images")}>Images</span>
+                  )}{" "}
+                  |{" "}
+                  {mode === "batches" ? (
+                    <span className="font-bold cursor-pointer">Batches</span>
+                  ) : (
+                    <span className="cursor-pointer" onClick={() => setMode("batches")}>Batches</span>
+                  )}
+                </div>
+                <div className="">
+                  {mode === "images" && (
+                    <>
+                      Images/page:{" "}
+                      {itemsPerPageSelects.map((value) => (
+                        <label key={value} class="labelImgPerPage">
+                          <input
+                            type="radio"
+                            value={value}
+                            checked={itemsPerPage === value}
+                            onChange={() => setItemsPerPage(value)}
+                          />{" "}
+                          {value}
+                        </label>
+                      ))}
+                      <br />
+                    </>
+                  )}
+                  <label>
+                    Order:{" "}
+                    <button
+                      onClick={() => {
+                        setAsc(!asc);
+                      }}
+                    >
+                      {asc ? "⬆️" : "⬇️"}
+                    </button>
+                  </label>
+                  
+                  <label>
+                    {" "}
+                    Diff:{" "}
+                    <input
+                      type="checkbox"
+                      checked={showDiff}
+                      onChange={() => setShowDiff(!showDiff)}
+                    />
+                  </label>
+                </div>
+              </div>
+              <div className="sm:basis-1/2 basis-full pt-2">
+                <PageController {...pageInfo} />
+              </div>
+            </div>
+
+            <div>
+              {currentBatches.map((item, index) => (
+                <BatchGallery
+                  key={item.timeStr}
+                  batch={item}
+                  showDiff={showDiff}
+                  numColumns={numColumns}
+                />
+              ))}
+              <GalleryController
+                numColumns={numColumns}
+                setNumColumns={setNumColumns}
+              />
+            </div>
+
+            <PageController {...pageInfo} scrollToTop />
+          </div>
+        );
+      }
+
+      function BatchGallery({ batch, showDiff, numColumns }) {
+        const numBatchImages = batch.endIndex - batch.startIndex + 1;
+        const dateStr = getDateStr(new Date());
+        return (
+          <div className="py-2 ">
+            <div className="border m-2 p-2">
+              <p className="flex justify-between">
+                <span className="text-base mb-2">
+                  <strong>Batch {batch.batchNumber}</strong> ({numBatchImages}{" "}
+                  Images)
+                </span>
+                <span>{batch.timeStr}</span>
+              </p>
+              {Object.entries(batch.batchSettings).map(([key, value], idx) => (
+                <div key={idx} class="text-sm ">
+                  <strong>{key}:</strong>{" "}
+                  {batch.batchSettingDiffs[key] &&
+                  batch.batchSettingDiffs[key].length > 0 &&
+                  showDiff ? (
+                    <span>{batch.batchSettingDiffs[key].map((v) => v)}</span>
+                  ) : (
+                    <span>
+                      {key == "LoRAs" ? (
+                        <> 
+                          <br />
+                          <span>
+                            {value.map((LoRA, idx) => (
+                              <span key={idx}>
+                                {LoRA.name}: {LoRA.weight}
+                                {idx < value.length - 1 ? <br /> : ""}
+                              </span>
+                            ))}
+                          </span>
+                        </>
+                      ) : Array.isArray(value) ? (
+                        value.join(", ")
+                      ) : (
+                        value
+                      )}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div>
+              <div className={`grid gap-1 p-1 grid-cols-${numColumns}`}>
+                {batch.currentPageData.map((data, idx) => {
+                  const dateStr = data.src.split("_")[0];
+                  return (
+                    <div key={idx} className="">
+                      <img
+                        className="img-load-detection max-w-screen max-h-screen object-contain"
+                        src={`./${dateStr}/${data.src}`}
+                        alt={data.src}
+                        data-seed={data.Seed}
+                        data-json={JSON.stringify(data)}
+                        width="100%"
+                      />
+                      <p className="text-gray-500 text-sm">{data.src}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      function PageController({
+        mode,
+        currentPage,
+        setCurrentPage,
+        numPages,
+        numImages,
+        firstImageInPage,
+        lastImageInPage,
+        scrollToTop,
+      }) {
+        return (
+          <div className="flex justify-center">
+            <button
+              className="bg-transparent hover:bg-blue-500 text-white font-semibold hover:text-white py-2 px-4 border border-white hover:border-transparent rounded disabled:bg-gray-500 disabled:border-gray-800 disabled:text-white"
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              ◀️
+            </button>
+            <span className="p-2">
+              {mode === "batches" ? "Batch" : "P."} {currentPage} / {numPages} (
+              {firstImageInPage} - {lastImageInPage} / {numImages} Images)
+            </span>
+            <button
+              className="bg-transparent hover:bg-blue-500 text-white font-semibold hover:text-white py-2 px-4 border border-white hover:border-transparent rounded disabled:bg-gray-500 disabled:border-gray-800 disabled:text-white"
+              onClick={() => {
+                setCurrentPage((prev) => Math.min(prev + 1));
+                if (scrollToTop) {
+                  window.scroll({
+                    top: 0,
+                    left: 0,
+                    behavior: "smooth",
+                  });
+                }
+              }}
+              disabled={currentPage === numPages}
+            >
+              ▶️
+            </button>
+          </div>
+        );
+      }
+
+      function GalleryController({ numColumns, setNumColumns }) {
+        return (
+          <div className="sticky bottom-0 p-2">
+            <button
+              className="bg-transparent hover:bg-blue-500 text-white font-semibold hover:text-white py-2 px-4 border border-white hover:border-transparent rounded disabled:bg-gray-500 disabled:border-gray-800 disabled:text-white"
+              onClick={() => setNumColumns((prev) => Math.max(prev - 1, 1))}
+              disabled={numColumns === 1}
+            >
+              口
+            </button>
+            <button
+              className="bg-transparent hover:bg-blue-500 text-white font-semibold hover:text-white py-2 px-4 border border-white hover:border-transparent rounded disabled:bg-gray-500 disabled:border-gray-800 disabled:text-white"
+              onClick={() => setNumColumns((prev) => prev + 1)}
+            >
+              田
+            </button>
+          </div>
+        );
+      }
+
+      const getDateStr = (date) => {
+        console.log(date)
+        return date
+          .toLocaleDateString("ja-JP", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          })
+          .replaceAll("/", "-");
+      };
+
+      const parseLog = (html) => {
+        console.log("Start parseLog()")
+
+        const data = [];
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+        const images = doc.querySelectorAll("div[id$='_png']"); 
+        for (let i = 0; i < images.length; i++) {
+          const paragraphs = images[i].querySelectorAll("p");
+          const divs = images[i].querySelectorAll("div");
+          const trs = images[i].querySelectorAll("tr");
+          const settings = {};
+          let src;
+
+          if (paragraphs.length==0) {
+            /* From v2.1.852 (2023-12-18), log changed to <table> tag */ 
+            console.log("From v2.1.852s");
+            src = divs[0].innerText;
+            settings.crudLoras=[];
+            for (let j = 1; j < trs.length; j++) {
+              const key = trs[j].querySelector("td.key").textContent;
+              const value = trs[j].querySelector("td.value").textContent;
+              if (key=="LoRA") {
+                settings["crudLoras"].push(value);
+              } else {
+                settings[key] = value;
+              }
+            }
+          } else {
+            src = paragraphs[0].textContent; if (src=="") { src = paragraphs[1].textContent; }
+            for (let j = 1; j < paragraphs.length; j++) {
+              const text = paragraphs[j].textContent;
+              const nodes = paragraphs[j].childNodes;
+              for (let n = 0; n < nodes.length; n++) {
+                const node = nodes[n];
+                if (node.nodeName === "B") {
+                  const key = node.previousSibling.textContent
+                    .replace(": ", "")
+                    .replace(", ", "");
+                  const value = node.textContent;
+                  settings[key] = value;
+                }
+              }
+            }
+          }
+          data.push({
+            src,
+            ...settings,
+          });
+        }
+        console.log(data);
+
+        return {
+          data,
+        };
+      };
+
+      const getBatchData = (data) => {
+        const batchData = [];
+        const isAsc = data.length < 2 || data[0].src < data[1].src;
+
+        for (let i = 0; i < data.length; i++) {
+          if (i === 0 || !isSameBatch(data[i], data[i - 1])) {
+            batchData.push({
+              batchSettings: {
+                "Base Model": data[i]["Base Model"],
+                "Refiner Model": data[i]["Refiner Model"],
+                "Refiner Switch": data[i]["Refiner Switch"] ?? "",
+                Prompt: data[i]["Prompt"],
+                "Negative Prompt": data[i]["Negative Prompt"],
+                Styles: data[i]["Styles"],
+                "Performance": data[i]["Performance"],
+                "Use Fooocus V2 (Prompt Expansion)": data[i][
+                  "Fooocus V2 Expansion"
+                ]
+                  ? "true"
+                  : "false",
+                LoRAs: [],
+              },
+              batchSettingDiffs: {
+                "Base Model": [],
+                "Refiner Model": [],
+                "Refiner Switch": [],
+                "Use Fooocus V2 (Prompt Expansion)": [],
+                Prompt: [],
+                "Performance": [],
+                "Negative Prompt": [],
+                LoRAs: [],
+              },
+              timeStr: data[i].src.split("_")[1].replaceAll("-", ":"),
+              currentPageData: [],
+              startIndex: i,
+              endIndex: i,
+            });
+            // filter out the property starting with "LoRA"
+            Object.keys(data[i]).forEach((key) => {
+              if (key.startsWith("LoRA [")) {
+                batchData[batchData.length - 1].batchSettings.LoRAs.push({
+                  name: key.split("]")[0].replace("[", ""),
+                  weight: data[i][key],
+                });
+              }
+            });
+          } else {
+            if (batchData.length > 0) {
+              batchData[batchData.length - 1].endIndex = i;
+            }
+          }
+        }
+
+        for (let i = 0; i < batchData.length; i++) {
+          if (isAsc) {
+            batchData[i].batchNumber = i + 1;
+          } else {
+            batchData[i].batchNumber = batchData.length - i;
+          }
+        }
+        console.log({isAsc, batchData})
+
+        // get the diff of the prompt from the previous batch
+        for (let i = 0; i < batchData.length; i++) {
+          
+          // skip if the current batch is the oldest batch
+          if (isAsc && i === 0 || !isAsc && i === batchData.length - 1) {
+            continue
+          }
+
+          // skip if the current batch doesn't have the "Base Model" setting
+          // (Generated by upscaling or others)
+          if (!batchData[i].batchSettings["Base Model"]) {
+            continue
+          }
+
+          // find the second latest batch which has the "Base Model" setting
+          const oldBatches = isAsc ? batchData.slice(0, i).reverse() : batchData.slice(i + 1) // newest to oldest
+          
+          console.log('i: ', i , batchData[i], {oldBatches})
+          const prevBatchIndex = oldBatches
+            .findIndex((batch) => {
+              return batch.batchSettings["Base Model"]
+            });
+          
+          // skip if you can't find the previous batch
+          if (prevBatchIndex < 0) {
+            console.log('no previous batch')
+            continue
+          }
+
+          const prevBatch = oldBatches[prevBatchIndex]
+          const currBatch = batchData[i]
+          
+          console.log(prevBatch);
+          // finally get the diff of the prompts
+          [
+            "Base Model",
+            "Refiner Model",
+            "Refiner Switch",
+            "Use Fooocus V2 (Prompt Expansion)",
+            "Prompt",
+            "Negative Prompt",
+          ].forEach((prompt) => {
+            const diff = Diff.diffWords(
+              prevBatch.batchSettings[prompt],
+              currBatch.batchSettings[prompt]
+            );
+            diff.forEach((part) => {
+              if (part.added) {
+                currBatch.batchSettingDiffs[prompt].push(
+                  <span className="text-green-500">{part.value}</span>
+                );
+              } else if (part.removed) {
+                currBatch.batchSettingDiffs[prompt].push(
+                  <s className="text-red-500">{part.value}</s>
+                );
+              } else {
+                currBatch.batchSettingDiffs[prompt].push(
+                  <span>{part.value}</span>
+                );
+              }
+            });
+          });
+
+          // get the diff of the LoRAs from the previous batch
+          const prevLoRAs = prevBatch.batchSettings.LoRAs;
+          const currLoRAs = currBatch.batchSettings.LoRAs;
+          const LoRAsDiff = getLoRAsDiff(prevLoRAs, currLoRAs)
+          currBatch.batchSettingDiffs.LoRAs = LoRAsDiff
+        }
+        console.log('finishied getting batch data', batchData);
+
+        return batchData;
+      };
+
+      const getLoRAsDiff = (prevLoRAs, currLoRAs) => {
+        const newLoRAs = currLoRAs.filter(
+          (currLoRA) =>
+            !prevLoRAs.some((prevLoRA) => prevLoRA.name === currLoRA.name)
+        );
+        const removedLoRAs = prevLoRAs.filter(
+          (prevLoRA) =>
+            !currLoRAs.some((currLoRA) => currLoRA.name === prevLoRA.name)
+        );
+        const changedLoRAs = currLoRAs.filter((currLoRA) => {
+          const prevLoRA = prevLoRAs.find(
+            (prevLoRA) => prevLoRA.name === currLoRA.name
+          );
+          return prevLoRA && prevLoRA.weight !== currLoRA.weight;
+        });
+        const result = []
+        newLoRAs.forEach((newLoRA) => {
+          result.push(
+            <>
+              <br />
+              <span className="text-green-500">
+                {newLoRA.name}: {newLoRA.weight}
+              </span>
+            </>
+          );
+        });
+        changedLoRAs.forEach((changedLoRA) => {
+          result.push(
+            <>
+              <br />
+              <span>
+                {changedLoRA.name}:{" "}
+                <span className="text-green-500">
+                  {changedLoRA.weight}
+                </span>
+              </span>
+            </>
+          );
+        });
+        removedLoRAs.forEach((removedLoRA) => {
+          result.push(
+            <>
+              <br />
+              <s className="text-red-500">
+                {removedLoRA.name}: {removedLoRA.weight}
+              </s>
+            </>
+          );
+        });
+
+        return result
+      }
+
+      const isSameBatch = (a, b) => {
+        // Compare the Prompts and Model names
+        const compareKeys = [
+          "Prompt",
+          "Negative Prompt",
+          "Base Model",
+          "Refiner Model",
+          "Styles",
+          "Performance"
+        ];
+        if (compareKeys.some((key) => a[key] !== b[key])) {
+          return false;
+        }
+
+        if (
+          !!a["Fooocus V2 (Prompt Expansion)"] !==
+          !!b["Fooocus V2 (Prompt Expansion)"]
+        ) {
+          return false;
+        }
+
+        // Compare the LoRA names and weights
+        const [aLoRAKeys, bLoRAKeys] = [a, b].map((item) =>
+          Object.keys(item).filter((key) => key.startsWith("LoRA ["))
+        );
+        const [aLoRAs, bLoRAs] = [aLoRAKeys, bLoRAKeys].map((keys) =>
+          keys.map((key) => {
+            const LoRAName = key.split("]")[0].replace("[", "");
+            const LoRAWeight = a[key];
+            return { LoRAName, LoRAWeight };
+          })
+        );
+        if (aLoRAs.length !== bLoRAs.length) {
+          console.log(aLoRAs.length, bLoRAs.length);
+          return false;
+        }
+        if (
+          aLoRAs.some(
+            (aLoRA, idx) =>
+              aLoRA.LoRAName !== bLoRAs[idx].LoRAName ||
+              aLoRA.LoRAWeight !== bLoRAs[idx].LoRAWeight
+          )
+        ) {
+          return false;
+        }
+        return true;
+      };
+
+      const getCurrentBatchData = (data, batchData, startIndex, endIndex) => {
+        for (let i = startIndex; i < endIndex; i++) {
+          const batchIndex = batchData.findIndex(
+            (batch) => i >= batch.startIndex && i <= batch.endIndex
+          );
+          if (batchIndex >= 0) {
+            batchData[batchIndex].currentPageData.push(data[i]);
+          } else {
+            console.log("something wrong");
+          }
+        }
+        const currentBatches = batchData.filter(
+          (batch) => batch.currentPageData.length > 0
+        );
+        return currentBatches;
+      };
+
+      ReactDOM.createRoot(document.getElementById("app")).render(<App />);
+
+
+      /* NEW JS DEVs by toutjavascript */
+      function imgLoadDetection() {
+        $("div#divIMGSeed").remove();
+        $("div#divIMGSize").remove();
+        $("div#divIMGZoom").remove();
+        $("div#divIMGJSON").remove();
+
+        const images = document.querySelectorAll("img.img-load-detection");
+        images.forEach(function(image) {
+          /* Get images info width, height and filesize */
+          get_filesize(image.src, function(size) {
+            image.setAttribute("data-size", size);
+          });
+          let i=new Image();
+          i.src=image.src;
+          i.addEventListener("load", function() {
+            image.setAttribute("data-width", i.width)
+            image.setAttribute("data-height", i.height)
+          });
+
+          image.addEventListener("mouseover", function(evt) {
+            let img=evt.target;
+            if (img.complete) {
+              $("div#divIMGSeed").remove();
+              $("div#divIMGSize").remove();
+              $("div#divIMGZoom").remove();
+              $("div#divIMGJSON").remove();
+
+              $('<div id="divIMGSeed">').css({
+                top: $(img).offset().top+'px',
+                left: $(img).offset().left+'px',
+              }).html('Seed: '+img.dataset.seed)
+              .attr("title", "Click to copy Seed to clipboard")
+              .on("click", function() {
+                $("div#divIMGSeed").addClass("flash");
+                navigator.clipboard.writeText(img.dataset.seed);
+              })
+              .appendTo('body');
+      
+              let format=reduce(img.dataset.width, img.dataset.height)
+              $('<div id="divIMGSize">').css({
+                top: ($(img).offset().top+$(img).height()-24)+'px',
+                left: $(img).offset().left+'px'   
+              })
+              .html(img.dataset.width+"×"+img.dataset.height+" ("+format.join("/")+")"+" - "+(img.dataset.size>0?format_filesize(img.dataset.size):""))
+              .appendTo('body');
+              
+              /* Modal displayed on zoom image */
+              $('<div id="divIMGZoom">').css({
+                top: ($(img).offset().top-5)+'px',
+                left: ($(img).offset().left+$(img).width()-40)+'px'   
+              })
+              .html("🔍").click(function() {
+                var src = img.src, legende = img.getAttribute("alt"), json=img.dataset.json, modal;
+                var legendeSize=img.dataset.width+"×"+img.dataset.height+" ("+format.join("/")+")"+" - "+(img.dataset.size>0?format_filesize(img.dataset.size):"");
+                var width=parseInt(100*$(this).width()/$(window).width())+'%';
+                var height=parseInt(100*$(this).width()/$(window).width())+'%';
+                var top=parseInt($(this).offset().top-$(window).scrollTop());
+                var left=parseInt($(this).offset().left-$(window).scrollLeft());
+
+                function removeModal() {
+                  modal.removeClass('scale-up-center').animate({
+                    width: width,
+                    height: height,
+                    top: top,
+                    left: left, 
+                    opacity:0
+                  }, 200, function() {
+                    modal.remove();
+                  });
+                  $('body').off('keyup.modal-close');
+                }
+
+                /* Zoom modal window */
+                modal = $('<div id=\"modal-photo\">').css({
+                  background: 'RGBA(0,0,0,.8)',
+                  width: width,
+                  height: height,
+                  position: 'fixed',
+                  zIndex: '10000',
+                  top: top,
+                  left: left,
+                  opacity: 0
+                })
+                .attr("data-img-height", img.dataset.height)
+                .attr("data-img-width", img.dataset.width)
+                .attr("data-img-src", src)
+                .appendTo('body').animate({
+                  width: '100%',
+                  height: '100%',
+                  top: 0,
+                  left:0,
+                  opacity: 1
+                }, 200, function() {  
+                  $("span.copy").attr("title", "Click to copy to clipboard")
+                  .on("click", function(evt) {
+                    $(".flash").removeClass("flash")
+                    navigator.clipboard.writeText($(evt.target).text());
+                    $(evt.target).addClass("flash");
+                  });
+                  toggleImageSize();
+                })
+
+                /* image block */
+                var imageBlock=$('<div>').css({
+                  position: 'relative',
+                  background: 'RGBA(0,0,0,.8) url(' + src + ') no-repeat center',
+                  backgroundSize: 'contain',
+                  top: '0px',
+                  left: '0px',
+                  width: '100%',
+                  height: '100%',
+                }).attr("id", "imageBlock").appendTo(modal);
+
+                /* File name block */
+                var info=$('<div>').css({
+                  display: 'none',
+                  position: 'absolute',
+                  top: '10px',
+                  left: '10px',
+                  color: '#ffffff',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  textAlign: 'left',
+                  textShadow: '-2px 0px 2px #000, 0px 2px 2px #000, 2px 0px 2px #000, 0px -2px 2px #000' 
+                }).html(legende).appendTo(modal).fadeIn(600);
+
+                var infoSize=$('<div>').css({
+                  display: 'none',
+                  position: 'absolute',
+                  top: '32px',
+                  left: '10px',
+                  color: '#ffffff',
+                  fontSize: '14px',
+                  fontWeight: 'normal',
+                  textAlign: 'left',
+                  textShadow: '-2px 0px 2px #000, 0px 2px 2px #000, 2px 0px 2px #000, 0px -2px 2px #000' 
+                }).html(legendeSize).appendTo(modal).fadeIn(600);
+
+                var closeBtn=$('<div>').css({
+                  display: 'inline-block',
+                  position: 'absolute',
+                  top: '10px',
+                  right: '10px',
+                  color: '#ffffff',
+                  fontSize: '25px',
+                  fontWeight: 'bold',
+                  textAlign: 'right',
+                  cursor:'pointer',
+                  textShadow: '-2px 0px 2px #000, 0px 2px 2px #000, 2px 0px 2px #000, 0px -2px 2px #000' 
+                }).html("[Esc]  &#x2715;").on("click", ()=>removeModal()).appendTo(modal).fadeIn(600);
+          
+          
+                /* Prompts informations */
+                var info2=$('<div>').css({
+                  position: 'absolute',
+                  bottom: '0px',
+                  left: '0px',
+                  color: '#ffffff',
+                  fontSize: '12px',
+                  opacity:1,
+                  color:'#fff',
+                  width: '100%' 
+                }).on("mouseover", function(evt) {
+                  $(this).css("opacity", 1)
+                }).on("mouseout", function(evt) {
+                 // $(this).css("opacity", 0.3)                  
+                })
+                .addClass("")
+                .html(decodeFooocusJSON(json).html).appendTo(modal);
+            
+                $('body').on('keyup.modal-close', function(e) {
+                  if (e.key === 'Escape') {
+                    removeModal();
+                  }
+                });
+
+                new jBox('Tooltip', {
+                  attach: '.tooltip',
+                  theme: 'TooltipDark'
+                });
+
+              }).appendTo('body');
+
+          
+
+            }
+
+            /* Return decoded JSON with all datas usable and an HTML content */
+            function decodeFooocusJSON(json) {
+              try {
+                json=JSON.parse(json);
+              } catch(err) {
+                console.log("Error parse JSON");
+                data.html="ERROR PARSE JSON"
+                return data
+              }
+
+              json.styles=[];
+              if (json.Styles!="[]") {
+                let reg=new RegExp("(')", "g");
+                json.styles=json.Styles.replace("[","").replace(reg,"").replace("]","").split(", ");
+              }
+
+              if (typeof json.crudLoras !== "undefined") {
+                /* After v2.1.852, loras are captured differently by DOMparser */
+                json.loras=[];
+                for (let k in json.crudLoras) {
+                  let explode=json.crudLoras[k].replace(" : ",":").split(":");
+                  let weight=explode[1];
+                  let lora=explode[0];
+                  json.loras.push({name: lora, weight: weight});
+                }
+              } else {
+                json.loras=[];
+                for (let k in json) {
+                  if (k.substr(0,6)=="LoRA [") {
+                    let weight=json[k];
+                    let lora=k.replace("LoRA [","").replace("] weight","");
+                    json.loras.push({name: lora, weight: weight});
+                  }
+                }
+              }
+
+              json.html=`
+                <span class="metadatas" onclick="toggleMetadatas()">Show/Hide Metadatas &#x1F440;</span>
+                <div class="containerData flex flex-wrap">
+                  <div class="blockData sm:basis-2/5 basis-full"> 
+                    <div class="titreBlockData">Settings</div>
+                    <div class="itemData"><span class="labelItemData">Prompt</span> <span class="valuePromptData copy">`+json["Prompt"]+`</span></div>`;
+                    if (json["Negative Prompt"]=="") {
+                      json.html+=`<div class="itemData"><span class="labelItemData">Negative Prompt</span> <span class="none">none</span></div>`;
+                    } else {
+                      json.html+=`<div class="itemData"><span class="labelItemData">Negative Prompt</span> <span class="valuePromptData copy">`+json["Negative Prompt"]+`</span></div>`;
+                    }
+
+
+                    json.html+=`<div class="itemData"><span class="labelItemData">Seed</span> <span class="valueItemData copy">`+json["Seed"]+`</span></div>
+                    <div class="itemData">
+                      <span class="labelItemData">Perf.</span> <span class="valueItemData copy">`+json["Performance"]+`</span> 
+                      <span class="labelItemData">Resolution</span> <span class="valueItemData copy">`+json["Resolution"]+`</span>
+                    </div>
+                  </div>
+                  <div class="blockData sm:basis-2/5 basis-full"> 
+                    <div class="titreBlockData">Model & Style</div>
+                    <div class="itemData"><span class="labelItemData">Base Model</span> <span class="valueItemData copy">`+json["Base Model"]+`</span></div>
+                    <div class="itemData"><span class="labelItemData">Refiner Model</span> <span class="valueItemData copy">`+json["Refiner Model"]+`</span>
+                    <span class="labelItemData">Refiner Switch</span> <span class="valueItemData copy">`+json["Refiner Switch"]+`</span></div>
+
+                    <div class="itemData"><span class="labelItemData">Styles</span> `;
+                    for (let i=0; i<json.styles.length; i++) {
+                      json.html+=`<span class="valueItemData copy">`+json.styles[i]+`</span>`;
+                    }
+                    if (json.styles.length==0) {
+                      json.html+=`<span class="noneData">none</span>` ;
+                    }
+                    json.html+=`</div>`;
+                    if (json.styles.length>0) {
+                      json.html+=`<div class="itemData"><span class="labelItemData tooltip" title="Prompt auto completed by Fooocus V2 Style choices">Fooocus V2 Expansion Prompt &#9432;</span> <span class="valuePromptData maxHeight copy">`+json["Fooocus V2 Expansion"]+`</span></div>`;
+                    }
+
+
+                  json.html+=` 
+
+                  <div class="itemData"><span class="labelItemData h-7">LoRAs</span> `;
+                    for (let i=0; i<json.loras.length; i++) {
+                      json.html+=`<div class="h-7"><span class="valueItemData copy">`+json.loras[i].name.replace(".safetensors","")+"</span> Weight: <b>"+json.loras[i].weight+`</b></div>`;
+                    }
+                    json.html+=`</div>
+
+
+                  </div>
+                  <div class="blockData sm:basis-1/5 basis-full"> 
+                    <div class="titreBlockData">Advance</div>                 
+                  
+                    
+                    <div class="itemData"><span class="labelItemData">Guid.</span> <span class="valueItemData copy">`+json["Guidance Scale"]+`</span>                     
+                    <span class="labelItemData">Sharp.</span> <span class="valueItemData copy">`+json["Sharpness"]+`</span></div>
+                    <div class="titreBlockData">Dev. Debug Mode</div>                 
+
+                    <div class="itemData"><span class="labelItemData"> ADM</span> <span class="valueItemData copy">`+json["ADM Guidance"]+`</span></div>
+                    <div class="itemData"><span class="labelItemData"> Sampler</span> <span class="valueItemData copy">`+json["Sampler"]+`</span></div>
+                    <div class="itemData"><span class="labelItemData"> Scheduler</span> <span class="valueItemData copy">`+json["Scheduler"]+`</span></div>
+                  </div>
+                </div>
+                `;
+              console.log(json);
+
+
+              return json;
+            }
+
+            // Secure text from html inline
+            function htmlentities(value){if (value) { return $("<div>").text(value).html() } else { return '' } }
+
+            // Reduce a fraction by finding the Greatest Common Divisor and dividing by it.
+            function reduce(numerator, denominator){
+              var gcd = function gcd(a,b){
+                return b ? gcd(b, a%b) : a;
+              };
+              gcd = gcd(numerator,denominator);
+              return [numerator/gcd, denominator/gcd];
+            }
+
+
+          });
+
+        });
+      }
+
+      /* Button click Show/hide metadatas */
+      function toggleMetadatas() {
+        $("div.containerData").toggle();
+        toggleImageSize();
+      }
+      /* Update image size container to always fit in visible modal zone */
+      function toggleImageSize() {
+
+        if ($("div.containerData").css("display")=="none") { 
+          $("div#imageBlock").css("height", "100%");
+        } else {
+          let h=$("#modal-photo").height()-$("div.containerData").height();
+          console.log(h)
+          $("div#imageBlock").css("height", h+"px");
+        }
+
+      }
+
+      function format_filesize(s) { return (s/1024/1024).toFixed(2)+" Mo"; }
+
+      function get_filesize(url, callback) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("HEAD", url, true); // Notice "HEAD" instead of "GET", to get only the header
+        xhr.onreadystatechange = function() {
+          if (this.readyState == this.DONE) {
+            callback(parseInt(xhr.getResponseHeader("Content-Length")));
+          }
+        };
+        xhr.send();
+      }
+
+    </script>
+    <style type="text/css">
+      div.flash, span.flash {
+        animation: flash 0.5s 1;
+      }
+      @keyframes flash {
+        from {background-color: #fff;}
+        to {background-color: #ba00bd;}
+      }
+      div#divIMGSize {
+        position: absolute;
+        font-size:11px;
+        background-color: #ccc;
+        color:#000;
+        padding-left: 3px;
+        padding-right: 3px;
+        border-radius: 3px;
+        margin: 2px;
+        padding:1px;
+        opacity:0.8;
+      }
+      div#divIMGSeed {
+        position: absolute;
+        background-color: #000;
+        color: #fff;
+        padding-left: 3px;
+        padding-right: 3px;
+        font-size: 13px;
+        font-weight: normal;
+        font-style: italic;
+        margin: 2px;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+      div#divIMGZoom {
+        position: absolute;
+        color: #fff;
+        font-size: 30px;
+        text-shadow: 2px 2px 2px rgba(0,0,0,0.25);
+        font-weight: normal;
+        cursor: pointer;
+      }
+      div.containerData {
+        font-size:12px;
+        background-color: #000;
+        color:#fff;
+        width:100%;
+        border-top: 1px solid #ba00bd;
+      }
+      div.blockData {
+        padding:5px;
+      }
+      div.titreBlockData {
+        font-weight:bold;
+        text-align: center;
+        margin-top:0px;
+        font-size:14px;
+        margin-bottom:5px;
+        border-bottom:1px dotted #1F2A37;
+      }
+      div.itemData {
+        padding: 5px;
+      }      
+      span.labelItemData {
+        font-weight:bold;
+      }
+      span.valueItemData {
+        border:2px solid #000;
+        padding:3px 6px;
+        border-radius: 4px;
+        margin: 3px 6px 3px 0px;
+        background-color: #1F2A37;
+      }
+      span.valuePromptData {
+        display: block;
+        border:2px solid #000;
+        padding:3px 3px;
+        border-radius: 4px;
+        margin: 3px 3px;
+        background-color: #1F2A37;
+        overflow-y: auto;
+        max-height:100px;
+      }
+      .maxHeight {
+        max-height:40px !important;
+      }
+
+      @media (max-width:481px)  { 
+        span.valuePromptData, span.valueItemData {
+          margin: 2px;
+    
+        }
+        div.itemData {
+         padding: 2px;
+        }      
+        div.titreBlockData {
+          margin-bottom:2px;
+        }
+        div.blockData {
+          padding:2px 3px;
+        }
+      }
+
+
+      span.none {
+        color:#fff;
+      }
+      span.copy {
+        cursor: pointer;
+      }
+      span.copy:hover {
+        cursor: pointer;
+        border:2px solid #ba00bd;
+        background-color: #000;
+        color:#fff;
+      }   
+      
+      span.metadatas {
+        display:inline-block;
+        background-color: #660068bd;
+        color:#fff;
+        font-size: 18px;
+        font-weight: bold;
+        padding:6px 10px;
+        margin-bottom:0px;
+        cursor:pointer;
+        text-decoration: underline;
+      }
+      span.metadatas:hover {
+        background-color: #ba00bd;
+        color:#fff;
+      }
+
+      .jBox-content {
+        padding:3px;
+        font-size:11px;
+        background-color:#fff;
+        color:#000
+      }
+
+      label.labelImgPerPage {
+         padding-right:12px; 
+      }
+
+
+
+      body {
+        background: #0B0F19;
+      }
+      </style>
+
+
+<p><a href="https://github.com/toutjavascript/Fooocus-Log-Viewer/" target="_blank" class="underline p-5 text-slate-200 hover:text-slate-50 dark:hover:text-slate-300">Bug report/ideas/discussions on <svg viewBox="0 0 16 16" class="w-5 h-5 inline" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg> github.com/toutjavascript/Fooocus-Log-Viewer</a></p>
+  </body>
+</html>
