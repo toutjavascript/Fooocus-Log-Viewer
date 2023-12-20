@@ -65,11 +65,11 @@ Please contact when broken.
 
 The idea and initial work is inspired by @sngazm at https://github.com/lllyasviel/Fooocus/discussions/693
 
+
 ## Update log
 
 1.0.0 Initial public release
 - Inline Fooocus UI one click integration
-- The LoRAs Diff display doesn't work with new log.html file format (hope @lllyasviel will not change the log.html file format anymore)
 
 Next 1.0.x will be a more advanced version with :
 
@@ -77,6 +77,5 @@ Next 1.0.x will be a more advanced version with :
 - Bouton Next/Previous to navigate between images history on zoom page
 - Download Image button 
 - Download Image button with metadata EXIF prompt auto added
-- Trying to correct LoRAs diff display 
 
 Please share your ideas here by opening discussion. 
