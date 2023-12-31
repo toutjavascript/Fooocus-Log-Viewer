@@ -79,3 +79,4 @@ Next 1.0.x will be a more advanced version with :
 - Download Image button with metadata EXIF prompt auto added
 
 Please share your ideas here by opening discussion. 
+
