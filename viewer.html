@@ -609,10 +609,10 @@ File Version 2023-12-17/A1
             });
             // filter out the property starting with "LoRA"
             Object.keys(data[i]).forEach((key) => {
-              if (key.startsWith("LoRA [")) {
+              if (key.startsWith("LoRA ")) {
                 batchData[batchData.length - 1].batchSettings.LoRAs.push({
-                  name: key.split("]")[0].replace("[", ""),
-                  weight: data[i][key],
+                  name: data[i][key].split(':')[0].trim(),
+                  weight: data[i][key].split(':')[1].trim()
                 });
               }
             });
