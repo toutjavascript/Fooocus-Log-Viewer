@@ -6,12 +6,14 @@
 
     head += f'<script type="text/javascript" src="file=outputs/viewer.js"></script>\n'
 
-    The viewer.js file only add on UI the viewer link
+    Stop and Restart run.bat
+
+    The viewer.js file makes the viewer usable in Fooocus UI
 
 */
 console.log("Fooocus Log Viewer Include ./output/viewer.js");
 
-/* Searching the History Log link */
+/* Searching for the History Log link to add two new links */
 function viewerLinkIntegration() {
     console.log("Fooocus Log Viewer viewerLinkIntegration() start");
     document.querySelectorAll("a").forEach(function(a) {
@@ -55,6 +57,8 @@ function viewerIframeIntegration() {
     iframe.setAttribute("src", "file=outputs/viewer.html");
     iframe.setAttribute("id", "iframeViewer");
     iframe.setAttribute("style", getViewerIframePosition());
+    iframe.setAttribute("sandbox", "allow-same-origin allow-scripts allow-downloads");
+    iframe.setAttribute("referrerpolicy", "no-referrer");
     document.body.appendChild(iframe);
 
     /* Add a close viewer button */
@@ -86,6 +90,7 @@ function getViewerIframePosition() {
     top=c.offsetTop+15;
     left=parseInt((document.body.clientWidth-c.clientWidth-tabs[1].clientWidth-pad)/2);
     return `position: absolute; 
+    z-index:10000;
     border:1px solid #980099;
     top:`+top+`px; 
     left:`+left+`px; 
@@ -119,3 +124,9 @@ window.addEventListener("load", function(evt) {
         viewerListenResize();
     }, 500);
 });
+
+
+/* Communication between iframe and parent UI */
+function jsonTransfer() {
+    
+}

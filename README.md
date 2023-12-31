@@ -55,7 +55,7 @@ The dark theme offers a better experience.
 
 ## Fooocus Version Compability
 
-This add-on is validated from V2.1.852 Fooocus version.
+This add-on is validated from V2.1.852 to V2.1.857 Fooocus version.
 
 Each Fooocus update is at risk to break the proper functionning of this script.
 
@@ -68,15 +68,21 @@ The idea and initial work is inspired by @sngazm at https://github.com/lllyasvie
 
 ## Update log
 
+1.1.0 New Year Release
+- Next/Previous button to navigate between images history on zoom page
+- Download Image button 
+- A very simple "Metadatas: copy to Clipboard" button. Paste the datas in Generate Textarea to get the same image.
+
 1.0.0 Initial public release
 - Inline Fooocus UI one click integration
 
-Next 1.0.x will be a more advanced version with :
+
+Next 1.x will be a more advanced version with :
 
 - Better UI integration in Fooocus UI (work on CSS to optimize size and position)
-- Bouton Next/Previous to navigate between images history on zoom page
-- Download Image button 
 - Download Image button with metadata EXIF prompt auto added
+- Download alls images of a batch in one click
+- Check only dates with works in outputs directory
 
 Please share your ideas here by opening discussion. 
 

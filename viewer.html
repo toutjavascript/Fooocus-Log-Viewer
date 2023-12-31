@@ -1,28 +1,26 @@
 <!DOCTYPE html>
 <!--
+Fooocus Log Viewer
+Github repository 
+https://github.com/toutjavascript/Fooocus-Log-Viewer
+
 https://github.com/lllyasviel/Fooocus/discussions/693#discussioncomment-7853694
 
          Created by https://github.com/sngazm
 Modestly updated by https://github.com/toutjavascript
                     https://www.toutjavascript.com
 
-File Version 2023-12-17/A1
+File Version 2023-12-31/A1
 -->
 
 <html lang="us">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Viewer</title>
+    <title>Viewer:Fooocus Log Viewer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script
-    crossorigin
-    src="https://unpkg.com/react@18/umd/react.production.min.js"
-    ></script>
-    <script
-      crossorigin
-      src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
-    ></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
@@ -85,7 +83,12 @@ File Version 2023-12-17/A1
           sessionStorage.setItem("viewerDate", date.toDateString());
           setIsLoading(true);
           fetch(`./${dateStr}/log.html`, { cache: "no-store" })
-          .then((response) => response.text())
+          .then((response) => {
+            if (!response.ok) {
+                console.log(`Nothing to load on ${dateStr}`);
+            }
+            return response.text()
+          })
           .then((text) => parseLog(text))
           .then((data) => {
             const newData = data.data;
@@ -98,7 +101,8 @@ File Version 2023-12-17/A1
           .catch((e) => {
               // CORS error
               // console.error(e);
-              console.log(e)
+              //console.log(e)
+              //console.log(`Nothing to load on ${dateStr}`);
               if (e.name === "TypeError") {
                 setIsCorsError(true);
               }
@@ -215,7 +219,7 @@ File Version 2023-12-17/A1
         const [currentPage, setCurrentPage] = React.useState(1);
         const itemsPerPageSelects = [8, 16, 32, 64, 128];
         const [itemsPerPage, setItemsPerPage] = React.useState(
-          itemsPerPageSelects[0]
+          itemsPerPageSelects[2]
         );
         const [asc, setAsc] = React.useState(false);
         const [showDiff, setShowDiff] = React.useState(false);
@@ -426,6 +430,7 @@ File Version 2023-12-17/A1
                         src={`./${dateStr}/${data.src}`}
                         alt={data.src}
                         data-seed={data.Seed}
+                        data-name={data.src}
                         data-json={JSON.stringify(data)}
                         width="100%"
                       />
@@ -514,7 +519,6 @@ File Version 2023-12-17/A1
       };
 
       const parseLog = (html) => {
-        console.log("Start parseLog()")
 
         const data = [];
         const parser = new DOMParser();
@@ -529,13 +533,12 @@ File Version 2023-12-17/A1
 
           if (paragraphs.length==0) {
             /* From v2.1.852 (2023-12-18), log changed to <table> tag */ 
-            console.log("From v2.1.852s");
             src = divs[0].innerText;
             settings.crudLoras=[];
             for (let j = 1; j < trs.length; j++) {
               const key = trs[j].querySelector("td.key").textContent;
               const value = trs[j].querySelector("td.value").textContent;
-              if (key=="LoRA") {
+              if (key.substr(0,4)=="LoRA") {
                 settings["crudLoras"].push(value);
               } else {
                 settings[key] = value;
@@ -563,7 +566,7 @@ File Version 2023-12-17/A1
             ...settings,
           });
         }
-        console.log(data);
+        // console.log(data);
 
         return {
           data,
@@ -609,12 +612,15 @@ File Version 2023-12-17/A1
             });
             // filter out the property starting with "LoRA"
             Object.keys(data[i]).forEach((key) => {
-              if (key.startsWith("LoRA ")) {
+              console.log("i="+i+"  key:" +key)
+              if (key.startsWith("LoRA ")) { /* After V2.1.854 log format */
+                console.log("LORA new "+data[i][key]+" / "+data[i][value]);
                 batchData[batchData.length - 1].batchSettings.LoRAs.push({
                   name: data[i][key].split(':')[0].trim(),
                   weight: data[i][key].split(':')[1].trim()
                 });
               }
+
             });
           } else {
             if (batchData.length > 0) {
@@ -630,7 +636,7 @@ File Version 2023-12-17/A1
             batchData[i].batchNumber = batchData.length - i;
           }
         }
-        console.log({isAsc, batchData})
+        // console.log({isAsc, batchData})
 
         // get the diff of the prompt from the previous batch
         for (let i = 0; i < batchData.length; i++) {
@@ -649,7 +655,7 @@ File Version 2023-12-17/A1
           // find the second latest batch which has the "Base Model" setting
           const oldBatches = isAsc ? batchData.slice(0, i).reverse() : batchData.slice(i + 1) // newest to oldest
           
-          console.log('i: ', i , batchData[i], {oldBatches})
+          //console.log('i: ', i , batchData[i], {oldBatches})
           const prevBatchIndex = oldBatches
             .findIndex((batch) => {
               return batch.batchSettings["Base Model"]
@@ -665,7 +671,9 @@ File Version 2023-12-17/A1
           const currBatch = batchData[i]
           
           console.log(prevBatch);
+          
           // finally get the diff of the prompts
+
           [
             "Base Model",
             "Refiner Model",
@@ -701,7 +709,7 @@ File Version 2023-12-17/A1
           const LoRAsDiff = getLoRAsDiff(prevLoRAs, currLoRAs)
           currBatch.batchSettingDiffs.LoRAs = LoRAsDiff
         }
-        console.log('finishied getting batch data', batchData);
+        // console.log('finished getting batch data', batchData);
 
         return batchData;
       };
@@ -829,13 +837,19 @@ File Version 2023-12-17/A1
 
       /* NEW JS DEVs by toutjavascript */
       function imgLoadDetection() {
-        $("div#divIMGSeed").remove();
+        /* Thumbnail image */
+        $("div#divIMGMeta").remove();
         $("div#divIMGSize").remove();
         $("div#divIMGZoom").remove();
         $("div#divIMGJSON").remove();
 
         const images = document.querySelectorAll("img.img-load-detection");
+        var index=0;
         images.forEach(function(image) {
+          index++;
+          image.setAttribute("data-index", index);
+          image.setAttribute("id", "img-load-detection-"+index);
+          image.setAttribute("data-max", images.length);
           /* Get images info width, height and filesize */
           get_filesize(image.src, function(size) {
             image.setAttribute("data-size", size);
@@ -850,23 +864,23 @@ File Version 2023-12-17/A1
           image.addEventListener("mouseover", function(evt) {
             let img=evt.target;
             if (img.complete) {
-              $("div#divIMGSeed").remove();
+              $("div#divIMGMeta").remove();
               $("div#divIMGSize").remove();
               $("div#divIMGZoom").remove();
               $("div#divIMGJSON").remove();
 
-              $('<div id="divIMGSeed">').css({
+              $('<div id="divIMGMeta">').css({
                 top: $(img).offset().top+'px',
                 left: $(img).offset().left+'px',
-              }).html('Seed: '+img.dataset.seed)
-              .attr("title", "Click to copy Seed to clipboard")
+              }).html('Metadatas: click to copy all')
+              .attr("title", "Click to copy MetaDatas to clipboard")
               .on("click", function() {
-                $("div#divIMGSeed").addClass("flash");
-                navigator.clipboard.writeText(img.dataset.seed);
+                $("div#divIMGMeta").addClass("flash");
+                copyMetadatatoClipboard(img.dataset.json);
               })
               .appendTo('body');
       
-              let format=reduce(img.dataset.width, img.dataset.height)
+              let format=reduce(img.dataset.width, img.dataset.height);
               $('<div id="divIMGSize">').css({
                 top: ($(img).offset().top+$(img).height()-24)+'px',
                 left: $(img).offset().left+'px'   
@@ -879,13 +893,18 @@ File Version 2023-12-17/A1
                 top: ($(img).offset().top-5)+'px',
                 left: ($(img).offset().left+$(img).width()-40)+'px'   
               })
-              .html("🔍").click(function() {
-                var src = img.src, legende = img.getAttribute("alt"), json=img.dataset.json, modal;
+              .html("🔍").click( ()=> zoomImage(img) )
+              .appendTo('body');         
+
+
+              function zoomImage(img, delai=200) {
+                var src = img.src, legende = img.getAttribute("alt"), json=img.dataset.json, modal, index=parseInt(img.dataset.index), max=parseInt(img.dataset.max);
                 var legendeSize=img.dataset.width+"×"+img.dataset.height+" ("+format.join("/")+")"+" - "+(img.dataset.size>0?format_filesize(img.dataset.size):"");
-                var width=parseInt(100*$(this).width()/$(window).width())+'%';
-                var height=parseInt(100*$(this).width()/$(window).width())+'%';
-                var top=parseInt($(this).offset().top-$(window).scrollTop());
-                var left=parseInt($(this).offset().left-$(window).scrollLeft());
+                var width='2%';
+                var height='2%';
+                var top=parseInt($("#img-load-detection-"+index).offset().top-$(window).scrollTop());
+                var left=parseInt($("#img-load-detection-"+index).offset().left-$(window).scrollLeft());
+
 
                 function removeModal() {
                   modal.removeClass('scale-up-center').animate({
@@ -894,7 +913,7 @@ File Version 2023-12-17/A1
                     top: top,
                     left: left, 
                     opacity:0
-                  }, 200, function() {
+                  }, delai, function() {
                     modal.remove();
                   });
                   $('body').off('keyup.modal-close');
@@ -920,14 +939,14 @@ File Version 2023-12-17/A1
                   top: 0,
                   left:0,
                   opacity: 1
-                }, 200, function() {  
+                }, delai+20, function() {  
                   $("span.copy").attr("title", "Click to copy to clipboard")
                   .on("click", function(evt) {
                     $(".flash").removeClass("flash")
                     navigator.clipboard.writeText($(evt.target).text());
                     $(evt.target).addClass("flash");
                   });
-                  toggleImageSize();
+                  updateImageSize();
                 })
 
                 /* image block */
@@ -946,25 +965,25 @@ File Version 2023-12-17/A1
                   display: 'none',
                   position: 'absolute',
                   top: '10px',
-                  left: '10px',
+                  left: '42px',
                   color: '#ffffff',
-                  fontSize: '18px',
+                  fontSize: '17px',
                   fontWeight: 'bold',
                   textAlign: 'left',
                   textShadow: '-2px 0px 2px #000, 0px 2px 2px #000, 2px 0px 2px #000, 0px -2px 2px #000' 
-                }).html(legende).appendTo(modal).fadeIn(600);
+                }).html(legende).appendTo(modal).fadeIn(3*delai);
 
                 var infoSize=$('<div>').css({
                   display: 'none',
                   position: 'absolute',
                   top: '32px',
-                  left: '10px',
+                  left: '42px',
                   color: '#ffffff',
                   fontSize: '14px',
                   fontWeight: 'normal',
                   textAlign: 'left',
                   textShadow: '-2px 0px 2px #000, 0px 2px 2px #000, 2px 0px 2px #000, 0px -2px 2px #000' 
-                }).html(legendeSize).appendTo(modal).fadeIn(600);
+                }).html(legendeSize).appendTo(modal).fadeIn(3*delai);
 
                 var closeBtn=$('<div>').css({
                   display: 'inline-block',
@@ -977,11 +996,43 @@ File Version 2023-12-17/A1
                   textAlign: 'right',
                   cursor:'pointer',
                   textShadow: '-2px 0px 2px #000, 0px 2px 2px #000, 2px 0px 2px #000, 0px -2px 2px #000' 
-                }).html("[Esc]  &#x2715;").on("click", ()=>removeModal()).appendTo(modal).fadeIn(600);
+                }).html("[Esc]  &#x2715;").on("click", ()=>removeModal()).appendTo(modal).fadeIn(delai);
           
+                var next=$('<button id="nextImage">').css({
+                  display: 'inline-block',
+                  position: 'absolute',
+                  top: '50%',
+                  right: '10px',
+                  textAlign: 'center',
+                }).addClass("text-3xl").html("&#x25b6;").on("click", ()=>changeImage(index, 1, max)).appendTo(modal).fadeIn(delai);
+
+                var prev=$('<button id="previousImage">').css({
+                  display: 'inline-block',
+                  position: 'absolute',
+                  top: '50%',
+                  left: '10px',
+                  textAlign: 'center',
+                }).addClass("text-3xl").html("&#x25c0;").on("click", ()=>changeImage(index, -1, max)).appendTo(modal).fadeIn(delai);
           
+
+                var download=$('<button id="download">').css({
+                  display: 'inline-block',
+                  position: 'absolute',
+                  top: '10px',
+                  left: '1px',
+                  textAlign: 'center',
+                }).attr("title", "Click to download")
+                .on("click", () => {
+                  downloadImage(src, img.dataset.name)
+                  .then(() => { console.log('The image has been downloaded');  })
+                  .catch(err => {console.log('Error downloading image: ', err);});
+                })
+                .addClass("text-3xl").html("&#x2b07;").appendTo(modal).fadeIn(delai);
+          
+
+
                 /* Prompts informations */
-                var info2=$('<div>').css({
+                var info2=$('<div id="promptInfo">').css({
                   position: 'absolute',
                   bottom: '0px',
                   left: '0px',
@@ -990,30 +1041,88 @@ File Version 2023-12-17/A1
                   opacity:1,
                   color:'#fff',
                   width: '100%' 
-                }).on("mouseover", function(evt) {
-                  $(this).css("opacity", 1)
-                }).on("mouseout", function(evt) {
-                 // $(this).css("opacity", 0.3)                  
                 })
                 .addClass("")
                 .html(decodeFooocusJSON(json).html).appendTo(modal);
             
+                var metadata=$('<div id="divIMGMetaBig">').css({
+                  position: 'absolute',
+                  top: '-42px',
+                  left: '5px',
+                  color: '#ffffff',
+                  fontSize: '14px',
+                  fontWeight: 'normal',
+                  textAlign: 'left',
+                  textShadow: '-2px 0px 2px #000, 0px 2px 2px #000, 2px 0px 2px #000, 0px -2px 2px #000' 
+                }).html("Metadata: Click to copy all to Clipboard")
+                .on("click", function(e) {
+                  $(e.target).addClass("flash");
+                  copyMetadatatoClipboard(json);
+                })
+                .appendTo(info2);
+
+                updateImageSize();
+
+
+                /* Navigation between zoomed images */
+                function changeImage(index, way, max) {
+                  let newIndex=index+way;
+                  if (newIndex==0) {
+                    new jBox('Notice', {
+                      content: "No image before",
+                      theme: 'TooltipDark',
+                      attributes: { x: 'right', y: 'bottom' }
+                    });  
+                    return;
+                  }
+                  if (newIndex>max) {
+                    new jBox('Notice', {
+                      content: "No image after",
+                      theme: 'TooltipDark',
+                      attributes: { x: 'right', y: 'bottom' }
+                    });  
+                    return;
+                  }
+                  removeModal();
+                  zoomImage(document.querySelector("#img-load-detection-"+newIndex), 0);
+                }
+
                 $('body').on('keyup.modal-close', function(e) {
                   if (e.key === 'Escape') {
                     removeModal();
                   }
                 });
 
+                $('body').on('keyup.modal-close', function(e) {
+                  if (e.keyCode === 37) { $("#previousImage").click(); }
+                  if (e.keyCode === 39) { $("#nextImage").click(); }
+                });
+
+
+
                 new jBox('Tooltip', {
                   attach: '.tooltip',
                   theme: 'TooltipDark'
                 });
+              }
 
-              }).appendTo('body');
-
-          
 
             }
+
+
+
+
+            /* Copies all metadata json to clipboard and displays instructions block */
+            function copyMetadatatoClipboard(json) {
+              let data=decodeFooocusJSON(json);
+              navigator.clipboard.writeText(JSON.stringify(data.copy));
+              new jBox('Notice', {
+                content: "Metadatas are copied to clipboard.<br> Paste it on prompt textarea to regenerate this image.<br>Then click on 'Load Parameters' button and click on 'Generate' button",
+                theme: 'TooltipDark',                
+                attributes: { x: 'right', y: 'bottom' }
+              });
+            }
+
 
             /* Return decoded JSON with all datas usable and an HTML content */
             function decodeFooocusJSON(json) {
@@ -1024,6 +1133,27 @@ File Version 2023-12-17/A1
                 data.html="ERROR PARSE JSON"
                 return data
               }
+
+              let version="?";
+              if (typeof json.Version !== "undefined") version=json.Version;
+
+              json.copy={};
+              json.copy["Prompt"]=json["Prompt"];
+              json.copy["Negative Prompt"]=json["Negative Prompt"];
+              json.copy["Fooocus V2 Expansion"]=json["Fooocus V2 Expansion"];
+              json.copy["Styles"]=json["Styles"];
+              json.copy["Performance"]=json["Performance"];
+              json.copy["Resolution"]=json["Resolution"];
+              json.copy["Sharpness"]=json["Sharpness"];
+              json.copy["Guidance Scale"]=json["Guidance Scale"];
+              json.copy["ADM Guidance"]=json["ADM Guidance"];
+              json.copy["Base Model"]=json["Base Model"];
+              json.copy["Refiner Model"]=json["Refiner Model"];
+              json.copy["Refiner Switch"]=json["Refiner Switch"];
+              json.copy["Sampler"]=json["Sampler"];
+              json.copy["Scheduler"]=json["Scheduler"];
+              json.copy["Seed"]=json["Seed"];
+              json.copy["Version"]=version;
 
               json.styles=[];
               if (json.Styles!="[]") {
@@ -1049,6 +1179,11 @@ File Version 2023-12-17/A1
                     json.loras.push({name: lora, weight: weight});
                   }
                 }
+              }
+
+              /* Adds Lora to json.copy */
+              for (let i=0; i<json.loras.length; i++) {
+                json.copy["LoRA "+(i+1)]=json.loras[i].name+" : "+json.loras[i].weight;
               }
 
               json.html=`
@@ -1113,7 +1248,6 @@ File Version 2023-12-17/A1
                   </div>
                 </div>
                 `;
-              console.log(json);
 
 
               return json;
@@ -1140,20 +1274,19 @@ File Version 2023-12-17/A1
       /* Button click Show/hide metadatas */
       function toggleMetadatas() {
         $("div.containerData").toggle();
-        toggleImageSize();
+        updateImageSize();
       }
       /* Update image size container to always fit in visible modal zone */
-      function toggleImageSize() {
-
+      function updateImageSize() {
         if ($("div.containerData").css("display")=="none") { 
           $("div#imageBlock").css("height", "100%");
         } else {
           let h=$("#modal-photo").height()-$("div.containerData").height();
-          console.log(h)
           $("div#imageBlock").css("height", h+"px");
         }
-
       }
+
+      $(window).on("resize", () => updateImageSize());
 
       function format_filesize(s) { return (s/1024/1024).toFixed(2)+" Mo"; }
 
@@ -1167,6 +1300,31 @@ File Version 2023-12-17/A1
         };
         xhr.send();
       }
+
+
+      /* Detect if the viewer.html is loaded via iframe on Fooocus UI */
+      function isIframe() {
+        console.log("window.top.length="+window.top.length);
+      }
+      isIframe();
+
+      async function downloadImage(imageSrc, nameOfDownload = 'image.png' ) {
+        const response = await fetch(imageSrc);      
+        const blobImage = await response.blob();      
+        const href = URL.createObjectURL(blobImage);
+      
+        const anchorElement = document.createElement('a');
+        anchorElement.href = href;
+        anchorElement.download = nameOfDownload;
+      
+        document.body.appendChild(anchorElement);
+        anchorElement.click();
+      
+        document.body.removeChild(anchorElement);
+        window.URL.revokeObjectURL(href);
+      }
+      
+      
 
     </script>
     <style type="text/css">
@@ -1189,7 +1347,7 @@ File Version 2023-12-17/A1
         padding:1px;
         opacity:0.8;
       }
-      div#divIMGSeed {
+      div#divIMGMeta {
         position: absolute;
         background-color: #000;
         color: #fff;
@@ -1200,6 +1358,20 @@ File Version 2023-12-17/A1
         font-style: italic;
         margin: 2px;
         border-radius: 3px;
+        cursor: pointer;
+      }
+      div#divIMGMetaBig{
+        position: absolute;
+        background-color: #000;
+        color: #fff;
+        padding-left: 3px;
+        padding-right: 3px;
+        font-size: 15px;
+        font-weight: normal;
+        font-style: italic;
+        margin: 2px;
+        border-radius: 3px;
+        border:2px solid #ba00bd;
         cursor: pointer;
       }
       div#divIMGZoom {
