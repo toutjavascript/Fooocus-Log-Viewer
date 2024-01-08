@@ -10,7 +10,7 @@ https://github.com/lllyasviel/Fooocus/discussions/693#discussioncomment-7853694
 Modestly updated by https://github.com/toutjavascript
                     https://www.toutjavascript.com
 
-File Version 2023-12-31/A1
+File Version 2024-07-01/A1
 -->
 
 <html lang="us">
@@ -25,8 +25,8 @@ File Version 2023-12-31/A1
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
 
-    <script src="https://cdn.jsdelivr.net/gh/StephanWagner/jBox@v1.3.3/dist/jBox.all.min.js"></script>
     <link href="https://cdn.jsdelivr.net/gh/StephanWagner/jBox@v1.3.3/dist/jBox.all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/gh/StephanWagner/jBox@v1.3.3/dist/jBox.all.min.js"></script>
   </head>
 
   <body class="text-white">
@@ -65,16 +65,46 @@ File Version 2023-12-31/A1
           setDate(new Date(year, month - 1, day));
         };
 
+        /* Use the workingDates array to navigate directly to a date with images */
+        const getWorkingDate = (dt, way) => {
+          let dtComp=dt.toISOString().substr(0,10);
+          console.log("getWorkingDate("+dt+","+way+")")
+          if (workingDates.length>0) {
+            if (way>0) {
+              for (let i=workingDates.length-1; i>=0; i--) {
+                console.log(i+" workingDates[i]="+workingDates[i])
+                if (workingDates[i]>=dtComp) {
+                  console.log("ok")
+                  return new Date(workingDates[i])
+                }
+              }
+            } else {
+              for (let i=0; i<workingDates.length; i++) {
+                if (workingDates[i]<=dtComp) {return new Date(workingDates[i])}
+              }
+            }
+          }
+          return dt;
+        }
+
         const goTomorrow = () => {
           const tomorrow = new Date(date);
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          setDate(tomorrow);
+          tomorrow.setDate(tomorrow.getDate() + 1);          
+          setDate(getWorkingDate(tomorrow, 1));
         };
         const goYesterday = () => {
           const yesterday = new Date(date);
           yesterday.setDate(yesterday.getDate() - 1);
-          setDate(yesterday);
+          setDate(getWorkingDate(yesterday, -1));
         };
+        const goDate = (e) => {
+          console.log("goDate("+e.target.value+")");
+          const day = new Date(e.target.value);
+          console.log("day="+day);
+          day.setDate(day.getDate());
+          console.log("day="+day);
+          setDate(day);
+        }
 
         const fetchData = () => {
           if (!isToday) {
@@ -127,11 +157,11 @@ File Version 2023-12-31/A1
 
         return (
           <div className="pb-2">
-            <div className="px-4 py-1">
+            <div className="px-4 py-0">
               <a href="/">Fooocus</a> / Viewer <button className="p-2 m-2 text-xl" onClick={() => goYesterday()}>
                 ◀️
               </button>
-              <input
+              <input id="inputDay"
                 className="text-gray-900"
                 type="date"
                 value={dateStr}
@@ -147,6 +177,15 @@ File Version 2023-12-31/A1
               >
                 ▶️
               </button>
+              <input id="changeCalendar"
+                className="hidden"
+                type="text"
+                onClick={(e) => {
+                  console.log(e);
+                  goDate(e);
+                }}              
+              />
+              <div id="calendar" class="px-2 text-2xl cursor-pointer" title="Show list of all working days">	&#128197; </div>
               {isToday ? (
                 <>
                   <label>
@@ -172,6 +211,7 @@ File Version 2023-12-31/A1
                 isLoading && <span className="text-gray-500">Loading...</span>
               )}
             </div>
+            <div id="calendarList" class="px-4 py-0"></div>
             {!isLoading && (
               <>
                 {isCorsError && (
@@ -223,6 +263,7 @@ File Version 2023-12-31/A1
         );
         const [asc, setAsc] = React.useState(false);
         const [showDiff, setShowDiff] = React.useState(false);
+        const [showDetail, setShowDetail] = React.useState(false);
 
         // Init numCols from body width
         let numCols=2;
@@ -290,6 +331,7 @@ File Version 2023-12-31/A1
           lastImageInPage,
         };
 
+
         const pageData = [];
         pageData.push(sortedData.slice(startIndex, endIndex));
         return (
@@ -340,7 +382,7 @@ File Version 2023-12-31/A1
                   </label>
                   
                   <label>
-                    {" "}
+                    &nbsp;&nbsp;
                     Diff:{" "}
                     <input
                       type="checkbox"
@@ -348,6 +390,17 @@ File Version 2023-12-31/A1
                       onChange={() => setShowDiff(!showDiff)}
                     />
                   </label>
+
+                  <label>                    
+                    &nbsp;&nbsp;
+                    Batch Details:{" "}
+                    <input
+                      type="checkbox"
+                      checked={showDetail}
+                      onChange={() => setShowDetail(!showDetail)}
+                    />
+                  </label>
+
                 </div>
               </div>
               <div className="sm:basis-1/2 basis-full pt-2">
@@ -361,6 +414,7 @@ File Version 2023-12-31/A1
                   key={item.timeStr}
                   batch={item}
                   showDiff={showDiff}
+                  showDetail={showDetail}
                   numColumns={numColumns}
                 />
               ))}
@@ -375,49 +429,64 @@ File Version 2023-12-31/A1
         );
       }
 
-      function BatchGallery({ batch, showDiff, numColumns }) {
+      function BatchGallery({ batch, showDiff, showDetail, numColumns }) {
+        console.log("showDetail="+showDetail)
         const numBatchImages = batch.endIndex - batch.startIndex + 1;
         const dateStr = getDateStr(new Date());
         return (
           <div className="py-2 ">
             <div className="border m-2 p-2">
               <p className="flex justify-between">
-                <span className="text-base mb-2">
+                <span className="text-base mb-0">
                   <strong>Batch {batch.batchNumber}</strong> ({numBatchImages}{" "}
                   Images)
                 </span>
                 <span>{batch.timeStr}</span>
               </p>
-              {Object.entries(batch.batchSettings).map(([key, value], idx) => (
-                <div key={idx} class="text-sm ">
-                  <strong>{key}:</strong>{" "}
-                  {batch.batchSettingDiffs[key] &&
-                  batch.batchSettingDiffs[key].length > 0 &&
-                  showDiff ? (
-                    <span>{batch.batchSettingDiffs[key].map((v) => v)}</span>
-                  ) : (
-                    <span>
-                      {key == "LoRAs" ? (
-                        <> 
-                          <br />
-                          <span>
-                            {value.map((LoRA, idx) => (
-                              <span key={idx}>
-                                {LoRA.name}: {LoRA.weight}
-                                {idx < value.length - 1 ? <br /> : ""}
-                              </span>
-                            ))}
-                          </span>
-                        </>
-                      ) : Array.isArray(value) ? (
-                        value.join(", ")
-                      ) : (
-                        value
-                      )}
-                    </span>
-                  )}
+              <div class={showDetail ? ( "hidden" ) : ( "" ) }>
+                <strong>{batch.batchSettings["Base Model"].replace(".safetensors", "")}</strong>
+                {batch.batchSettings["Refiner Model"]!="None" ? (
+                  <>
+                    &nbsp;/&nbsp;<strong>{batch.batchSettings["Refiner Model"].replace(".safetensors", "")}</strong>
+                    &nbsp;x {batch.batchSettings["Refiner Switch"]}
+                  </>
+                ) : ( <span></span> ) 
+              }
+              &nbsp;/&nbsp;<strong>{batch.batchSettings["Performance"]}</strong>
+
+              </div>
+              <div class={showDetail ? ( "" ) : ( "hidden" ) }>
+                {Object.entries(batch.batchSettings).map(([key, value], idx) => (
+                  <div key={idx} class="text-sm ">
+                    <strong>{key}:</strong>{" "}
+                    {batch.batchSettingDiffs[key] &&
+                    batch.batchSettingDiffs[key].length > 0 &&
+                    showDiff ? (
+                      <span>{batch.batchSettingDiffs[key].map((v) => v)}</span>
+                    ) : (
+                      <span>
+                        {key == "LoRAs" ? (
+                          <> 
+                            <br />
+                            <span>
+                              {value.map((LoRA, idx) => (
+                                <span key={idx}>
+                                  {LoRA.name}: {LoRA.weight}
+                                  {idx < value.length - 1 ? <br /> : ""}
+                                </span>
+                              ))}
+                            </span>
+                          </>
+                        ) : Array.isArray(value) ? (
+                          value.join(", ")
+                        ) : (
+                          value
+                        )}
+                      </span>
+                    )}
+                  </div>
+                ))}
                 </div>
-              ))}
             </div>
             <div>
               <div className={`grid gap-1 p-1 grid-cols-${numColumns}`}>
@@ -434,7 +503,7 @@ File Version 2023-12-31/A1
                         data-json={JSON.stringify(data)}
                         width="100%"
                       />
-                      <p className="text-gray-500 text-sm">{data.src}</p>
+                      <p className="text-gray-500 text-sm hideOverflowSrc">{data.src}</p>
                     </div>
                   );
                 })}
@@ -612,13 +681,15 @@ File Version 2023-12-31/A1
             });
             // filter out the property starting with "LoRA"
             Object.keys(data[i]).forEach((key) => {
-              console.log("i="+i+"  key:" +key)
+              /* console.log("i="+i+"  key:" +key) */
               if (key.startsWith("LoRA ")) { /* After V2.1.854 log format */
-                console.log("LORA new "+data[i][key]+" / "+data[i][value]);
-                batchData[batchData.length - 1].batchSettings.LoRAs.push({
-                  name: data[i][key].split(':')[0].trim(),
-                  weight: data[i][key].split(':')[1].trim()
-                });
+                try {
+                  console.log("LORA new "+data[i][key]+" / "+data[i][value]);
+                  batchData[batchData.length - 1].batchSettings.LoRAs.push({
+                    name: data[i][key].split(':')[0].trim(),
+                    weight: data[i][key].split(':')[1].trim()
+                  });
+                } catch(e) {}
               }
 
             });
@@ -670,7 +741,7 @@ File Version 2023-12-31/A1
           const prevBatch = oldBatches[prevBatchIndex]
           const currBatch = batchData[i]
           
-          console.log(prevBatch);
+          console.log("prevBatch");
           
           // finally get the diff of the prompts
 
@@ -836,12 +907,32 @@ File Version 2023-12-31/A1
 
 
       /* NEW JS DEVs by toutjavascript */
+
+      /* Display all the days with pictures detected on directory */
+      function toggleCalendar() {
+        console.log("toggleCalendar()")
+        if (workingDates.length>0) {
+          let list="";
+          for (let i=0; i<workingDates.length; i++) {
+            let dt=new Date(workingDates[i]);            
+          list+="<div class='workingDate' onclick='loadDay("+i+")'>"+dt.toLocaleDateString()+" <span class='nbImages'>"+detailDates[workingDates[i]]+" <span>&#x1f4f7;</span></span></div>"
+          }
+          $("div#calendarList").html(list).toggle();
+        }      
+      }
+      function loadDay(i) {
+        console.log("loadDay("+i+") : "+workingDates[i]);
+        $("input#changeCalendar").attr("value", workingDates[i]);
+        $("input#changeCalendar").click();
+      }
+
       function imgLoadDetection() {
         /* Thumbnail image */
         $("div#divIMGMeta").remove();
         $("div#divIMGSize").remove();
         $("div#divIMGZoom").remove();
         $("div#divIMGJSON").remove();
+        $("div#divIMGDownload").remove();
 
         const images = document.querySelectorAll("img.img-load-detection");
         var index=0;
@@ -868,6 +959,7 @@ File Version 2023-12-31/A1
               $("div#divIMGSize").remove();
               $("div#divIMGZoom").remove();
               $("div#divIMGJSON").remove();
+              $("div#divIMGDownload").remove();
 
               $('<div id="divIMGMeta">').css({
                 top: $(img).offset().top+'px',
@@ -888,6 +980,18 @@ File Version 2023-12-31/A1
               .html(img.dataset.width+"×"+img.dataset.height+" ("+format.join("/")+")"+" - "+(img.dataset.size>0?format_filesize(img.dataset.size):""))
               .appendTo('body');
               
+              $('<div id="divIMGDownload">').css({
+                top: ($(img).offset().top+$(img).height()-42)+'px',
+                left: ($(img).offset().left+$(img).width()-34)+'px'   
+              }).html('<button id="download" title="Click to download" class="text-2xl" style="display: inline-block; position: absolute; top: 10px; left: 1px; text-align: center;">⬇</button>')
+              .on("click", () => {
+                downloadImage(img.src, img.dataset.name)
+                .then(() => { console.log('The image has been downloaded');  })
+                .catch(err => {console.log('Error downloading image: ', err);});
+              })
+              .appendTo('body');
+
+
               /* Modal displayed on zoom image */
               $('<div id="divIMGZoom">').css({
                 top: ($(img).offset().top-5)+'px',
@@ -1271,6 +1375,62 @@ File Version 2023-12-31/A1
         });
       }
 
+
+      /* Get all outputs directory working dates */
+      var workingDates=[], detailDates=[];
+      function calendarGeneration() {
+        console.log("Working date calendar generation");
+        getAllDates();      
+        $("div#calendar").on("click", toggleCalendar);
+      }
+
+      /* Fetches on all $dt/log.html */
+      function getAllDates() {
+        workingDates=[]; detailDates=[];
+        function addDay(dt, day) {
+          const dt2 = new Date(dt);
+          dt2.setDate(dt2.getDate() + day);
+          return dt2.toISOString().substr(0,10);
+        };
+        var dateStr=new Date();  dateStr=dateStr.toISOString().substr(0,10);
+        let dates=[];
+        for (let i = 0; i < 200; i++) {
+          dates.push(addDay(dateStr, -1*i));
+        }
+
+        // Maps each dt into a fetch() Promise
+        var requests = dates.map(function(dt){
+          return fetch(`./${dt}/log.html`, { cache: "no-store" })
+          .then(function(response) {
+            if (response.ok) {
+              workingDates.push(dt);              
+            }
+            return response.text();
+          })
+          .then((text) => {
+            detailDates[dt]=((text.match(/<div id=/g)|| []).length);
+          });
+        });
+
+        // Resolve all the promises
+        Promise.all(requests)
+        .then((results) => {
+          new jBox('Notice', {
+            content: "Calendar working date generation success. <br>Only days with images will be loaded.<br>Click on calendar &#128197; above to view all days with generation work.",
+            theme: 'TooltipDark',
+            attributes: {x: "left", y: "top"},
+            offset: { x: 20, y: 45 }
+          }); 
+          workingDates.sort(); /* Force sort because promise are async */
+          workingDates.reverse();
+          return;
+        }).catch(function(err) {
+          console.log(err);
+        })
+      }
+
+
+
       /* Button click Show/hide metadatas */
       function toggleMetadatas() {
         $("div.containerData").toggle();
@@ -1308,6 +1468,7 @@ File Version 2023-12-31/A1
       }
       isIframe();
 
+      /* Downloading an image via JS */
       async function downloadImage(imageSrc, nameOfDownload = 'image.png' ) {
         const response = await fetch(imageSrc);      
         const blobImage = await response.blob();      
@@ -1324,7 +1485,8 @@ File Version 2023-12-31/A1
         window.URL.revokeObjectURL(href);
       }
       
-      
+
+      setTimeout(calendarGeneration, 500)
 
     </script>
     <style type="text/css">
@@ -1375,6 +1537,14 @@ File Version 2023-12-31/A1
         cursor: pointer;
       }
       div#divIMGZoom {
+        position: absolute;
+        color: #fff;
+        font-size: 30px;
+        text-shadow: 2px 2px 2px rgba(0,0,0,0.25);
+        font-weight: normal;
+        cursor: pointer;
+      }
+      div#divIMGDownload {
         position: absolute;
         color: #fff;
         font-size: 30px;
@@ -1484,12 +1654,66 @@ File Version 2023-12-31/A1
          padding-right:12px; 
       }
 
+      div#calendar {
+        display: inline-block;
+        margin-right:10px;
+      }
+      div#calendarList {
+        display: none;
+        width:100%;        
+      }
+      span.nbImages {
+        display: inline-block;
+        background-color: #ba00bd;
+        width:52px;
+        border-radius:2px;
+        padding:0px 2px;
+        color:#fff;
+        font-weight: bold;
+        text-align: right;
+      }
+      span.nbImages > span {
+        display: inline-block;
+      }
 
+      div.workingDate {
+        display: inline-block;
+        font-size:12px;
+        font-weight: bold;
+        padding:1px 3px;
+        cursor: pointer;
+        color: #fff;
+        border-radius:5px;
+        border:1px solid #ba00bd;
+        margin:2px 4px;
+
+      }
+      div.workingDate:hover {
+        background-color: #ba00bd;
+        color: #fff;
+      }
+
+      .hideOverflowSrc {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
 
       body {
         background: #0B0F19;
       }
-      </style>
+
+
+      .jBox-TooltipDark  .jBox-content {
+        background-color: #ba00bd !important;
+        border:1px solid #ba00bd !important;
+        color:#fff !important;
+        font-weight: bold !important;
+        font-size:14px !important;
+        box-shadow: 5px 5px 5px #000;
+      }
+
+    </style>
 
 
 <p><a href="https://github.com/toutjavascript/Fooocus-Log-Viewer/" target="_blank" class="underline p-5 text-slate-200 hover:text-slate-50 dark:hover:text-slate-300">Bug report/ideas/discussions on <svg viewBox="0 0 16 16" class="w-5 h-5 inline" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg> github.com/toutjavascript/Fooocus-Log-Viewer</a></p>
