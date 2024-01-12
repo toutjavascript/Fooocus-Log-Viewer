@@ -10,7 +10,7 @@ https://github.com/lllyasviel/Fooocus/discussions/693#discussioncomment-7853694
 Modestly updated by https://github.com/toutjavascript
                     https://www.toutjavascript.com
 
-File Version 2024-07-01/A1
+File Version 2024-01-12/A1
 -->
 
 <html lang="us">
@@ -32,11 +32,128 @@ File Version 2024-07-01/A1
   <body class="text-white">
     <div id="app"></div>
     <script type="text/babel">
+
+      var configs=[
+        {item: "autoReloadToday", type: "checkbox", label: "Auto Reload (only on today page)", value: false},
+        {item: "workingDates", type: "text", label: "Working Dates", value: ""},
+        {item: "playSound", type: "checkbox", label: "Play Sound when new Image is detected", value: true},
+        {item: "soundFile", type: "text", label: "Sound File", value: "https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3"},
+        {item: "viewerDate", type: "text", label: "Start Date", value: ""},
+        {item: "displayDiff", type:"checkbox", label:"Display Differences between batches", value: false},
+        {item: "displayDetails", type:"checkbox", label:"View Batch Prompt Details", value: true},
+        {item: "displayMetaBlock", type:"checkbox", label:"View Meta Detail on Zoomed Image", value: true},
+        {item: "nbColumns", type:"integer", label:"Number of columns in the grid", value: 3},
+        {item: "nbImagePerPage", type:"integer", label:"Number of images displayed per page", value: 32},
+
+
+
+      ];
+
+
+
+      function getParam(item) {
+        return localStorage.getItem(item);
+      }
+      function saveParam(item, value) {
+        localStorage.setItem(item, value);
+      }
+
+      /* Load configurations and localStorage on App init */
+      function loadConfig() {
+        setTimeout(checkNewImage, 1000);
+      }
+
+      function goPlaySound() {
+        if (localStorage.getItem("playSound")=="true") {
+          var audio =new Audio("https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3");
+          console.log("run audio");
+          audio.play();
+        } else {
+          console.log("playSound is off")
+        }
+      }
+
+      /* Detection of new Image on today folder */
+      var nbTodayImages=0;
+      function checkNewImage() {
+        let today=new Date(); today=today.toISOString().substr(0,10);
+        fetch(`./${today}/log.html`, { cache: "no-store" })
+        .then(function(response) {
+          return response.text();
+        })
+        .then((text) => {
+          let matches=text.match(/<div id=\"([a-z0-9_\-])+\"/g);
+          let nb=((matches|| []).length);
+          if ((nb>nbTodayImages)&&(nbTodayImages>0)) {
+            let n=nbTodayImages-nb;
+            matches.sort();
+            let src=matches[matches.length-1].replace('<div id="',"").replace("_png",".png").replace("_jpg",".jpg").replace("_webp",".webp").replace('"',"");
+            new jBox('Notice', {
+              content: "Yeah! "+n+" new Image"+(n>1?'s':'')+" generated now on today folder<br><img src='./"+today+"/"+src+"' class='imageNotice'>",
+              theme: "TooltipNewImage"
+            });
+            goPlaySound();
+          }
+          nbTodayImages=nb;
+          /* Update calendar */
+          /* Check if today is in workingDates */
+          if (nbTodayImages>0) {
+            if (workingDates.includes(today)) {
+              detailDates[today]=nb;          
+            } else {
+              /* Add today at 0 index to workingDates*/
+              workingDates.unshift(today);
+              detailDates[today]=nb;
+            }
+            toggleCalendar(); toggleCalendar();  /* Update div#calendarList*/
+          }
+
+          setTimeout(checkNewImage, 5000);
+        });    
+      }
+      
+      /* Create an empty image */
+      function getNotFoundImg() {
+        let svgElement = document.createElementNS("http://www.w3.org/2000/svg", 'svg'); // Create a new SVG element
+        svgElement.setAttribute('width', '500');    // Set the width and height of the SVG canvas
+        svgElement.setAttribute('height', '500');
+        
+        let rect = document.createElementNS("http://www.w3.org/2000/svg", 'rect');  // Create a new <rect> element to represent border
+        rect.setAttribute('x', 2);     // Position the rectangle at (50,50) on the SVG canvas
+        rect.setAttribute('y', 2);
+        rect.setAttribute('width', '492');    // Set width and height of the rectangle to cover entire SVG area
+        rect.setAttribute('height', '492');
+        rect.style.fill = 'none';       // Set fill color of the rectangle to none (transparent)
+        rect.style.stroke = '#aaa';     // Set stroke color of the rectangle
+        rect.style.strokeWidth = '4';    // Set width of the border
+        svgElement.appendChild(rect);  // Append the <rect> element to the SVG canvas
+        
+        let text = document.createElementNS("http://www.w3.org/2000/svg", 'text');  // Create a new <text> element for "Not Found"
+        text.setAttribute('x', 60);     // Position the text at (50,50) on the SVG canvas
+        text.setAttribute('y', 250);
+        text.style.fontSize = '48';     // Set the font size of the text
+        text.style.fill = '#aaa';      // Set the color of the text
+        text.innerHTML = "Image Not Found";    // Set the content of the <text> element to "Not Found"
+        svgElement.appendChild(text);  // Append the <text> element to the SVG canvas
+
+
+        // Serialize the SVG to a string
+        let serializer = new XMLSerializer();
+        let svgString = serializer.serializeToString(svgElement);
+
+        // Convert the SVG string to a data URL
+        let svgDataUrl = 'data:image/svg+xml,' + encodeURIComponent(svgString);
+
+        return svgDataUrl;              
+      }
+
+
       function App() {
 
+
         const [date, setDate] = React.useState(() => {
-          const date = sessionStorage.getItem("viewerDate")
-            ? new Date(sessionStorage.getItem("viewerDate"))
+          const date = localStorage.getItem("viewerDate")
+            ? new Date(localStorage.getItem("viewerDate"))
             : new Date();
           return date;
         });
@@ -45,14 +162,17 @@ File Version 2024-07-01/A1
         const [isLoading, setIsLoading] = React.useState(false);
         const [isCorsError, setIsCorsError] = React.useState(false);
         const [isNotFoundError, setIsNotFoundError] = React.useState(false);
+        const [playSound, setPlaySound] = React.useState(false);
         const [autoReload, setAutoReload] = React.useState(() => {
-          const autoReload = sessionStorage.getItem("autoReload")
-            ? sessionStorage.getItem("autoReload") === "true"
+          const autoReload = localStorage.getItem("autoReload")
+            ? localStorage.getItem("autoReload") == "true"
             : false;
           return autoReload;
         });
         React.useEffect(() => {
-          sessionStorage.setItem("autoReload", autoReload.toString());
+          console.log("autorelod=")
+          console.log(autoReload)
+          localStorage.setItem("autoReload", autoReload.toString());
         }, [autoReload]);
 
         const isToday = date.toDateString() === new Date().toDateString();
@@ -64,6 +184,8 @@ File Version 2024-07-01/A1
             .map((str) => parseInt(str));
           setDate(new Date(year, month - 1, day));
         };
+
+
 
         /* Use the workingDates array to navigate directly to a date with images */
         const getWorkingDate = (dt, way) => {
@@ -106,11 +228,12 @@ File Version 2024-07-01/A1
           setDate(day);
         }
 
+
         const fetchData = () => {
           if (!isToday) {
             setAutoReload(false);
           }
-          sessionStorage.setItem("viewerDate", date.toDateString());
+          localStorage.setItem("viewerDate", date.toDateString());
           setIsLoading(true);
           fetch(`./${dateStr}/log.html`, { cache: "no-store" })
           .then((response) => {
@@ -147,18 +270,31 @@ File Version 2024-07-01/A1
         React.useEffect(fetchData, [date]);
 
         React.useEffect(() => {
+          setPlaySound(getParam("playSound")=="true"?true:false);
+
           if (autoReload) {
             const interval = setInterval(() => {
               fetchData();
-            }, 5000);
+            }, 15000);
             return () => clearInterval(interval);
           }
         }, [autoReload]);
 
+
         return (
           <div className="pb-2">
-            <div className="px-4 py-0">
-              <a href="/">Fooocus</a> / Viewer <button className="p-2 m-2 text-xl" onClick={() => goYesterday()}>
+            <div className="px-1 py-0">
+
+                <button id="config" onClick={() => viewConfig() }
+                  className={ (window.location.href.indexOf("#debug")>0) ? "px-2 mx-2 text-xl " : "px-2 mx-2 text-xl hidden" }
+                  type="text"
+                  >
+                  &#x2699;
+                </button>
+
+
+              <span class="smartphoneHidden">Fooocus Log Viewer</span>
+              <button className="px-2 mx-2 text-xl" onClick={() => goYesterday()}>
                 ◀️
               </button>
               <input id="inputDay"
@@ -169,9 +305,7 @@ File Version 2024-07-01/A1
                   handleUpdateDate(e.target.value);
                 }}
               />
-              <button
-                className="p-2 m-2 text-xl"
-                onClick={() => {
+              <button className="px-2 mx-2 text-xl" onClick={() => {
                   goTomorrow();
                 }}
               >
@@ -185,33 +319,56 @@ File Version 2024-07-01/A1
                   goDate(e);
                 }}              
               />
+
+
+
+
               <div id="calendar" class="px-2 text-2xl cursor-pointer" title="Show list of all working days">	&#128197; </div>
+
+              <label>
+                Sound on new Image: 
+                <input
+                class="ml-1 mr-3"
+                type="checkbox"
+                checked={playSound}
+                onChange={() => {
+                  console.log("onchange playSound");
+                  setPlaySound(!playSound);
+                  saveParam("playSound", !playSound);
+                }}
+                />
+
+
+              </label>
+
+
               {isToday ? (
                 <>
                   <label>
-                    <input
-                      type="checkbox"
-                      checked={autoReload}
-                      onChange={() => {
-                        console.log("onchange");
-                        if (!autoReload) {
-                          fetchData();
-                        }
-                        setAutoReload(!autoReload);
-                      }}
-                    />{" "}
                     {isLoading ? (
                       <span className="text-gray-500">Loading...</span>
                     ) : (
-                      "Auto Reload"
+                      "AutoReload:"
                     )}
+                    <input
+                    class="ml-1 mr-3"
+                    type="checkbox"
+                    checked={autoReload}
+                    onChange={() => {
+                      if (!autoReload) {
+                        fetchData();
+                      }
+                      setAutoReload(!autoReload);
+                      saveParam("autoReloadToday", !autoReload);
+                    }}
+                  />
                   </label>
                 </>
               ) : (
                 isLoading && <span className="text-gray-500">Loading...</span>
               )}
             </div>
-            <div id="calendarList" class="px-4 py-0"></div>
+            <div id="calendarList" class="px-4 pt-2 pb-1"></div>
             {!isLoading && (
               <>
                 {isCorsError && (
@@ -247,28 +404,101 @@ File Version 2024-07-01/A1
             {data && data.length > 0 ? (
               <ImageViewer dateStr={dateStr} data={data} />
             ) : (
-              <p className="text-center m-16">No data in this folder 🤔</p>
+              <div>
+                <p className="text-center m-16">No data in this folder</p>
+                <p className="text-center m-2">Looking for last folder with images. </p>
+                <p className="text-center m-2"><a class="p-2 shadow-sm bg-purple-500 rounded-md hidden cursor-pointer" id="nearestDate">Click to see the earliest generation date</a></p>
+              </div>
             )}
           </div>
         );
       }
+
+
+      /* Configuration block */
+
+      function saveConfig() {
+        /* Save the config in localStorage */
+
+      }
+      
+      function deleteConfig() {
+        // Clears the entire local storage
+        localStorage.clear();
+      }
+
+      function viewConfig() {
+        if ($("#configDiv").length>0) {
+          $("#configDiv").remove();
+          return;
+        }
+        let html="<div class='text-lg text-center'>Fooocus Log Viewer Configuration</div>";
+        for (let i=0; i<configs.length; i++) {
+          let config=configs[i];
+          if (config.type=="checkbox") {
+            html+="<div class='flex flex-row justify-between text-base'><label class='text-sm'>"+config.label+"</label>";
+            html+="<input type='checkbox' id='"+config.item+"' class='configItem' "+(localStorage.getItem(config.item)=="true" ? "checked" : "")+">";
+            html+="</div>";
+          }
+          if (config.type=="integer") {
+            html+="<div class='flex flex-row justify-between text-base'><label class='text-sm'>"+config.label+"</label>";
+            html+="<span type='text' id='"+config.item+"' class='' value=''>"+localStorage.getItem(config.item)+"</span>";
+            html+="</div>";
+          }
+
+        }
+        html+="<div class='flex flex-row justify-between'><button class='text-lg bg-red-500 hover:bg-red-700 px-2 py-1.5 leading-5 rounded-md font-semibold text-white m-1 bg-red-500 leading-5 rounded-md font-semibold text-white' onclick='viewConfig()'>Cancel</button> <button class='text-lg m-1 bg-sky-500 hover:bg-sky-700 px-2 py-1.5 leading-5 rounded-md font-semibold text-white' onclick=''>Save Config</button> </div> <button class='text-lg m-1 bg-sky-500 hover:bg-sky-700 px-2 py-1.5 leading-5 rounded-md font-semibold text-white' onclick='deleteConfig()'>Delete Config</button> </div>";
+
+        var conf=$('<div id="configDiv">').css({
+          position: 'absolute',
+          top: '50px',
+          left: '20px',
+          color: '#ffffff',
+          backgroundColor: '#000000',
+          border:"3px solid #999",
+          boxShadow:"5px 5px 5px #333",
+          padding: '10px',
+          borderRadius: '10px',
+          fontSize: '12px',
+          opacity:1,
+          color:'#fff',
+          width: '320px' 
+        })
+        .addClass("")
+        .html(html).appendTo(document.body);
+      
+      }
+
 
       function ImageViewer({ data, dateStr }) {
         const [mode, setMode] = React.useState("images"); // images, batches
 
         const [currentPage, setCurrentPage] = React.useState(1);
         const itemsPerPageSelects = [8, 16, 32, 64, 128];
-        const [itemsPerPage, setItemsPerPage] = React.useState(
-          itemsPerPageSelects[2]
-        );
+        /* Get Item per pages from localStorage if exists */
+        let perPage=32;
+        if (getParam("nbImagePerPage")) {
+          perPage=parseInt(getParam("nbImagePerPage"));
+        } else {
+          itemsPerPageSelects[2];
+          saveParam("nbImagePerPage", perPage);
+        }
+
+        const [itemsPerPage, setItemsPerPage] = React.useState( perPage );
         const [asc, setAsc] = React.useState(false);
         const [showDiff, setShowDiff] = React.useState(false);
         const [showDetail, setShowDetail] = React.useState(false);
 
-        // Init numCols from body width
+        // Init numCols from body width or from localStorage
         let numCols=2;
         if ($("body").width()>800) numCols=3;
         if ($("body").width()>1200) numCols=5;
+        if (getParam("nbColumns")) {
+          numCols=parseInt(getParam("nbColumns"));
+        } else {
+          saveParam("nbColumns", numCols);
+        }
+        
         const [numColumns, setNumColumns] = React.useState(numCols);
 
         // Sort the data based on the title (generated timestamp)
@@ -282,12 +512,16 @@ File Version 2024-07-01/A1
         const batchData = getBatchData(sortedData);
 
         React.useEffect(() => {
+
+          setShowDetail(getParam("displayDetails")=="true"?true:false);
+          setShowDiff(getParam("displayDiff")=="true"?true:false);
           if (currentPage > Math.ceil(data.length / itemsPerPage)) {
             setCurrentPage(Math.ceil(data.length / itemsPerPage));
           }
           imgLoadDetection();
-        }, [itemsPerPage]);
+        }, [itemsPerPage, dateStr, mode, sortedData]);
 
+        /*
         React.useEffect(() => {
           setCurrentPage(1);
           imgLoadDetection();
@@ -296,6 +530,7 @@ File Version 2024-07-01/A1
         React.useEffect(() => {
           imgLoadDetection();
         }, [mode, sortedData]);
+        */
 
         // Calculate the range of data for the current page
         let startIndex, endIndex, numPages, firstImageInPage, lastImageInPage;
@@ -359,10 +594,11 @@ File Version 2024-07-01/A1
                       {itemsPerPageSelects.map((value) => (
                         <label key={value} class="labelImgPerPage">
                           <input
+                            id="itemsPerPage"
                             type="radio"
                             value={value}
                             checked={itemsPerPage === value}
-                            onChange={() => setItemsPerPage(value)}
+                            onChange={() => {setItemsPerPage(value); saveParam("nbImagePerPage", value);}}
                           />{" "}
                           {value}
                         </label>
@@ -385,9 +621,10 @@ File Version 2024-07-01/A1
                     &nbsp;&nbsp;
                     Diff:{" "}
                     <input
+                      id="showDiff"
                       type="checkbox"
-                      checked={showDiff}
-                      onChange={() => setShowDiff(!showDiff)}
+                      checked={showDiff }
+                      onChange={() => {saveParam("displayDiff", !showDiff); setShowDiff(!showDiff); }}
                     />
                   </label>
 
@@ -395,9 +632,10 @@ File Version 2024-07-01/A1
                     &nbsp;&nbsp;
                     Batch Details:{" "}
                     <input
+                      id="showDetail"
                       type="checkbox"
                       checked={showDetail}
-                      onChange={() => setShowDetail(!showDetail)}
+                      onChange={() => {saveParam("displayDetails", !showDetail); setShowDetail(!showDetail); }}
                     />
                   </label>
 
@@ -430,7 +668,6 @@ File Version 2024-07-01/A1
       }
 
       function BatchGallery({ batch, showDiff, showDetail, numColumns }) {
-        console.log("showDetail="+showDetail)
         const numBatchImages = batch.endIndex - batch.startIndex + 1;
         const dateStr = getDateStr(new Date());
         return (
@@ -478,9 +715,23 @@ File Version 2024-07-01/A1
                             </span>
                           </>
                         ) : Array.isArray(value) ? (
-                          value.join(", ")
+                          <> </>
                         ) : (
-                          value
+                          <>
+                          {key == "Styles" ? (
+                            <div class="flex"> 
+                            {value.replace(/'/g, "").replace("[","").replace("]","").split(", ").map((style, i) => (
+                              <div class="flex-initial text-center mx-1 styleContainer">
+                              <img src={ ("/file=sdxl_styles/samples/"+style.replace(/ /g,"_")+".jpg") } class="styleImage"/>
+                              <span class="styleTitle">{style}</span> 
+                              </div>
+                            ))}                          
+                            </div> 
+                          ) : 
+                          (  
+                            value
+                          )} 
+                          </>
                         )}
                       </span>
                     )}
@@ -501,6 +752,12 @@ File Version 2024-07-01/A1
                         data-seed={data.Seed}
                         data-name={data.src}
                         data-json={JSON.stringify(data)}
+                        data-error="false"
+                        onError={ (evt => {
+                          console.log("error on "+evt.target.src);
+                          evt.target.dataset.error="true";
+                          evt.target.src=getNotFoundImg();
+                        }) }
                         width="100%"
                       />
                       <p className="text-gray-500 text-sm hideOverflowSrc">{data.src}</p>
@@ -561,14 +818,14 @@ File Version 2024-07-01/A1
           <div className="sticky bottom-0 p-2">
             <button
               className="bg-transparent hover:bg-blue-500 text-white font-semibold hover:text-white py-2 px-4 border border-white hover:border-transparent rounded disabled:bg-gray-500 disabled:border-gray-800 disabled:text-white"
-              onClick={() => setNumColumns((prev) => Math.max(prev - 1, 1))}
+              onClick={() => {setNumColumns((prev) => Math.max(prev - 1, 1)); saveParam("nbColumns", Math.max(numColumns - 1, 1));}}
               disabled={numColumns === 1}
             >
               口
             </button>
             <button
               className="bg-transparent hover:bg-blue-500 text-white font-semibold hover:text-white py-2 px-4 border border-white hover:border-transparent rounded disabled:bg-gray-500 disabled:border-gray-800 disabled:text-white"
-              onClick={() => setNumColumns((prev) => prev + 1)}
+              onClick={() => {setNumColumns((prev) => prev + 1); saveParam("nbColumns", numColumns+1);}}
             >
               田
             </button>
@@ -909,8 +1166,217 @@ File Version 2024-07-01/A1
       /* NEW JS DEVs by toutjavascript */
 
       /* Display all the days with pictures detected on directory */
+      function zoomImage(img, delai=200) {
+        let format=reduce(img.dataset.width, img.dataset.height);
+        var src = img.src, legende = img.getAttribute("alt"), json=img.dataset.json, modal, index=parseInt(img.dataset.index), max=parseInt(img.dataset.max);
+        var legendeSize=img.dataset.width+"×"+img.dataset.height+" ("+format.join("/")+")"+" - "+(img.dataset.size>0?format_filesize(img.dataset.size):"");
+        var width='2%';
+        var height='2%';
+        var top=parseInt($("#img-load-detection-"+index).offset().top-$(window).scrollTop());
+        var left=parseInt($("#img-load-detection-"+index).offset().left-$(window).scrollLeft());
+
+
+        function removeModal() {
+          modal.removeClass('scale-up-center').animate({
+            width: width,
+            height: height,
+            top: top,
+            left: left, 
+            opacity:0
+          }, delai, function() {
+            modal.remove();
+          });
+          $('body').off('keyup.modal-close');
+        }
+
+        /* Zoom modal window */
+        modal = $('<div id=\"modal-photo\">').css({
+          background: 'RGBA(0,0,0,.8)',
+          width: width,
+          height: height,
+          position: 'fixed',
+          zIndex: '10000',
+          top: top,
+          left: left,
+          opacity: 0
+        })
+        .attr("data-img-height", img.dataset.height)
+        .attr("data-img-width", img.dataset.width)
+        .attr("data-img-src", src)
+        .appendTo('body').animate({
+          width: '100%',
+          height: '100%',
+          top: 0,
+          left:0,
+          opacity: 1
+        }, delai+20, function() {  
+          $("span.copy").attr("title", "Click to copy to clipboard")
+          .on("click", function(evt) {
+            $(".flash").removeClass("flash")
+            navigator.clipboard.writeText($(evt.target).text());
+            $(evt.target).addClass("flash");
+          });
+          updateImageSize();
+        })
+
+        /* image block */
+        var imageBlock=$('<div>').css({
+          position: 'relative',
+          background: 'RGBA(0,0,0,.8) url(' + src + ') no-repeat center',
+          backgroundSize: 'contain',
+          top: '0px',
+          left: '0px',
+          width: '100%',
+          height: '100%',
+        }).attr("id", "imageBlock").appendTo(modal);
+
+        /* File name block */
+        var info=$('<div>').css({
+          display: 'none',
+          position: 'absolute',
+          top: '10px',
+          left: '42px',
+          color: '#ffffff',
+          fontSize: '17px',
+          fontWeight: 'bold',
+          textAlign: 'left',
+          textShadow: '-2px 0px 2px #000, 0px 2px 2px #000, 2px 0px 2px #000, 0px -2px 2px #000' 
+        }).html(legende).appendTo(modal).fadeIn(3*delai);
+
+        var infoSize=$('<div>').css({
+          display: 'none',
+          position: 'absolute',
+          top: '32px',
+          left: '42px',
+          color: '#ffffff',
+          fontSize: '14px',
+          fontWeight: 'normal',
+          textAlign: 'left',
+          textShadow: '-2px 0px 2px #000, 0px 2px 2px #000, 2px 0px 2px #000, 0px -2px 2px #000' 
+        }).html(legendeSize).appendTo(modal).fadeIn(3*delai);
+
+        var closeBtn=$('<div>').css({
+          display: 'inline-block',
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          color: '#ffffff',
+          fontSize: '25px',
+          fontWeight: 'bold',
+          textAlign: 'right',
+          cursor:'pointer',
+          textShadow: '-2px 0px 2px #000, 0px 2px 2px #000, 2px 0px 2px #000, 0px -2px 2px #000' 
+        }).html("[Esc]  &#x2715;").on("click", ()=>removeModal()).appendTo(modal).fadeIn(delai);
+  
+        var next=$('<button id="nextImage">').css({
+          display: 'inline-block',
+          position: 'absolute',
+          top: '50%',
+          right: '10px',
+          textAlign: 'center',
+        }).addClass("text-3xl").html("&#x25b6;").on("click", ()=>changeImage(index, 1, max)).appendTo(modal).fadeIn(delai);
+
+        var prev=$('<button id="previousImage">').css({
+          display: 'inline-block',
+          position: 'absolute',
+          top: '50%',
+          left: '10px',
+          textAlign: 'center',
+        }).addClass("text-3xl").html("&#x25c0;").on("click", ()=>changeImage(index, -1, max)).appendTo(modal).fadeIn(delai);
+  
+
+        var download=$('<button id="download">').css({
+          display: 'inline-block',
+          position: 'absolute',
+          top: '10px',
+          left: '1px',
+          textAlign: 'center',
+        }).attr("title", "Click to download")
+        .on("click", () => {
+          downloadImage(src, img.dataset.name)
+          .then(() => { console.log('The image has been downloaded');  })
+          .catch(err => {console.log('Error downloading image: ', err);});
+        })
+        .addClass("text-3xl").html("&#x2b07;").appendTo(modal).fadeIn(delai);
+  
+
+
+        /* Prompts informations */
+        var info2=$('<div id="promptInfo">').css({
+          position: 'absolute',
+          bottom: '0px',
+          left: '0px',
+          color: '#ffffff',
+          fontSize: '12px',
+          opacity:1,
+          color:'#fff',
+          width: '100%' 
+        })
+        .html(decodeFooocusJSON(json).html).appendTo(modal);
+    
+        var metadata=$('<div id="divIMGMetaBig">').css({
+          position: 'absolute',
+          top: '-42px',
+          left: '5px',
+          color: '#ffffff',
+          fontSize: '14px',
+          fontWeight: 'normal',
+          textAlign: 'left',
+          textShadow: '-2px 0px 2px #000, 0px 2px 2px #000, 2px 0px 2px #000, 0px -2px 2px #000' 
+        }).html("Metadata: Click to copy all to Clipboard")
+        .on("click", function(e) {
+          $(e.target).addClass("flash");
+          copyMetadatatoClipboard(json);
+        })
+        .appendTo(info2);
+
+        updateImageSize();
+
+
+        /* Navigation between zoomed images */
+        function changeImage(index, way, max) {
+          let newIndex=index+way;
+          if (newIndex==0) {
+            new jBox('Notice', {
+              content: "No image before",
+              theme: 'TooltipDark',
+              attributes: { x: 'right', y: 'bottom' }
+            });  
+            return;
+          }
+          if (newIndex>max) {
+            new jBox('Notice', {
+              content: "No image after",
+              theme: 'TooltipDark',
+              attributes: { x: 'right', y: 'bottom' }
+            });  
+            return;
+          }
+          removeModal();
+          zoomImage(document.querySelector("#img-load-detection-"+newIndex), 0);
+        }
+
+        $('body').on('keyup.modal-close', function(e) {
+          if (e.key === 'Escape') {
+            removeModal();
+          }
+        });
+
+        $('body').on('keyup.modal-close', function(e) {
+          if (e.keyCode === 37) { $("#previousImage").click(); }
+          if (e.keyCode === 39) { $("#nextImage").click(); }
+        });
+
+
+
+        new jBox('Tooltip', {
+          attach: '.tooltip',
+          theme: 'TooltipDark'
+        });
+      }
+
+
       function toggleCalendar() {
-        console.log("toggleCalendar()")
         if (workingDates.length>0) {
           let list="";
           for (let i=0; i<workingDates.length; i++) {
@@ -921,18 +1387,39 @@ File Version 2024-07-01/A1
         }      
       }
       function loadDay(i) {
-        console.log("loadDay("+i+") : "+workingDates[i]);
         $("input#changeCalendar").attr("value", workingDates[i]);
         $("input#changeCalendar").click();
       }
 
+
+      /* Copies all metadata json to clipboard and displays instructions block */
+      function copyMetadatatoClipboard(json) {
+        let data=decodeFooocusJSON(json);
+        navigator.clipboard.writeText(JSON.stringify(data.copy));
+        new jBox('Notice', {
+          content: "Metadatas are copied to clipboard.<br> Paste it on prompt textarea to regenerate this image.<br>Then click on 'Load Parameters' button and click on 'Generate' button",
+          theme: 'TooltipDark',                
+          attributes: { x: 'right', y: 'bottom' }
+        });
+      }
+
+
+
       function imgLoadDetection() {
+
+        console.log("Start imgLoadDetection()")
+
         /* Thumbnail image */
         $("div#divIMGMeta").remove();
         $("div#divIMGSize").remove();
         $("div#divIMGZoom").remove();
         $("div#divIMGJSON").remove();
         $("div#divIMGDownload").remove();
+
+
+
+
+
 
         const images = document.querySelectorAll("img.img-load-detection");
         var index=0;
@@ -950,11 +1437,23 @@ File Version 2024-07-01/A1
           i.addEventListener("load", function() {
             image.setAttribute("data-width", i.width)
             image.setAttribute("data-height", i.height)
+            $(image).addClass("cursor-zoom-in");
+            if (typeof image.dataset.onclick == "undefined") {
+              /* Add only one eventClickListener, necessary because multiple calls*/
+              image.setAttribute("data-onclick", "1");
+              image.addEventListener("click", function(evt) {
+                zoomImage(evt.target);
+              })
+            }  
           });
+
+
+
+
 
           image.addEventListener("mouseover", function(evt) {
             let img=evt.target;
-            if (img.complete) {
+            if (img.dataset.error=="false") {
               $("div#divIMGMeta").remove();
               $("div#divIMGSize").remove();
               $("div#divIMGZoom").remove();
@@ -966,7 +1465,8 @@ File Version 2024-07-01/A1
                 left: $(img).offset().left+'px',
               }).html('Metadatas: click to copy all')
               .attr("title", "Click to copy MetaDatas to clipboard")
-              .on("click", function() {
+              .on("click", function(evt) {
+                evt.stopPropagation();
                 $("div#divIMGMeta").addClass("flash");
                 copyMetadatatoClipboard(img.dataset.json);
               })
@@ -984,7 +1484,8 @@ File Version 2024-07-01/A1
                 top: ($(img).offset().top+$(img).height()-42)+'px',
                 left: ($(img).offset().left+$(img).width()-34)+'px'   
               }).html('<button id="download" title="Click to download" class="text-2xl" style="display: inline-block; position: absolute; top: 10px; left: 1px; text-align: center;">⬇</button>')
-              .on("click", () => {
+              .on("click", (evt) => {
+                evt.stopPropagation();
                 downloadImage(img.src, img.dataset.name)
                 .then(() => { console.log('The image has been downloaded');  })
                 .catch(err => {console.log('Error downloading image: ', err);});
@@ -992,223 +1493,14 @@ File Version 2024-07-01/A1
               .appendTo('body');
 
 
-              /* Modal displayed on zoom image */
+              /*
               $('<div id="divIMGZoom">').css({
                 top: ($(img).offset().top-5)+'px',
                 left: ($(img).offset().left+$(img).width()-40)+'px'   
               })
               .html("🔍").click( ()=> zoomImage(img) )
               .appendTo('body');         
-
-
-              function zoomImage(img, delai=200) {
-                var src = img.src, legende = img.getAttribute("alt"), json=img.dataset.json, modal, index=parseInt(img.dataset.index), max=parseInt(img.dataset.max);
-                var legendeSize=img.dataset.width+"×"+img.dataset.height+" ("+format.join("/")+")"+" - "+(img.dataset.size>0?format_filesize(img.dataset.size):"");
-                var width='2%';
-                var height='2%';
-                var top=parseInt($("#img-load-detection-"+index).offset().top-$(window).scrollTop());
-                var left=parseInt($("#img-load-detection-"+index).offset().left-$(window).scrollLeft());
-
-
-                function removeModal() {
-                  modal.removeClass('scale-up-center').animate({
-                    width: width,
-                    height: height,
-                    top: top,
-                    left: left, 
-                    opacity:0
-                  }, delai, function() {
-                    modal.remove();
-                  });
-                  $('body').off('keyup.modal-close');
-                }
-
-                /* Zoom modal window */
-                modal = $('<div id=\"modal-photo\">').css({
-                  background: 'RGBA(0,0,0,.8)',
-                  width: width,
-                  height: height,
-                  position: 'fixed',
-                  zIndex: '10000',
-                  top: top,
-                  left: left,
-                  opacity: 0
-                })
-                .attr("data-img-height", img.dataset.height)
-                .attr("data-img-width", img.dataset.width)
-                .attr("data-img-src", src)
-                .appendTo('body').animate({
-                  width: '100%',
-                  height: '100%',
-                  top: 0,
-                  left:0,
-                  opacity: 1
-                }, delai+20, function() {  
-                  $("span.copy").attr("title", "Click to copy to clipboard")
-                  .on("click", function(evt) {
-                    $(".flash").removeClass("flash")
-                    navigator.clipboard.writeText($(evt.target).text());
-                    $(evt.target).addClass("flash");
-                  });
-                  updateImageSize();
-                })
-
-                /* image block */
-                var imageBlock=$('<div>').css({
-                  position: 'relative',
-                  background: 'RGBA(0,0,0,.8) url(' + src + ') no-repeat center',
-                  backgroundSize: 'contain',
-                  top: '0px',
-                  left: '0px',
-                  width: '100%',
-                  height: '100%',
-                }).attr("id", "imageBlock").appendTo(modal);
-
-                /* File name block */
-                var info=$('<div>').css({
-                  display: 'none',
-                  position: 'absolute',
-                  top: '10px',
-                  left: '42px',
-                  color: '#ffffff',
-                  fontSize: '17px',
-                  fontWeight: 'bold',
-                  textAlign: 'left',
-                  textShadow: '-2px 0px 2px #000, 0px 2px 2px #000, 2px 0px 2px #000, 0px -2px 2px #000' 
-                }).html(legende).appendTo(modal).fadeIn(3*delai);
-
-                var infoSize=$('<div>').css({
-                  display: 'none',
-                  position: 'absolute',
-                  top: '32px',
-                  left: '42px',
-                  color: '#ffffff',
-                  fontSize: '14px',
-                  fontWeight: 'normal',
-                  textAlign: 'left',
-                  textShadow: '-2px 0px 2px #000, 0px 2px 2px #000, 2px 0px 2px #000, 0px -2px 2px #000' 
-                }).html(legendeSize).appendTo(modal).fadeIn(3*delai);
-
-                var closeBtn=$('<div>').css({
-                  display: 'inline-block',
-                  position: 'absolute',
-                  top: '10px',
-                  right: '10px',
-                  color: '#ffffff',
-                  fontSize: '25px',
-                  fontWeight: 'bold',
-                  textAlign: 'right',
-                  cursor:'pointer',
-                  textShadow: '-2px 0px 2px #000, 0px 2px 2px #000, 2px 0px 2px #000, 0px -2px 2px #000' 
-                }).html("[Esc]  &#x2715;").on("click", ()=>removeModal()).appendTo(modal).fadeIn(delai);
-          
-                var next=$('<button id="nextImage">').css({
-                  display: 'inline-block',
-                  position: 'absolute',
-                  top: '50%',
-                  right: '10px',
-                  textAlign: 'center',
-                }).addClass("text-3xl").html("&#x25b6;").on("click", ()=>changeImage(index, 1, max)).appendTo(modal).fadeIn(delai);
-
-                var prev=$('<button id="previousImage">').css({
-                  display: 'inline-block',
-                  position: 'absolute',
-                  top: '50%',
-                  left: '10px',
-                  textAlign: 'center',
-                }).addClass("text-3xl").html("&#x25c0;").on("click", ()=>changeImage(index, -1, max)).appendTo(modal).fadeIn(delai);
-          
-
-                var download=$('<button id="download">').css({
-                  display: 'inline-block',
-                  position: 'absolute',
-                  top: '10px',
-                  left: '1px',
-                  textAlign: 'center',
-                }).attr("title", "Click to download")
-                .on("click", () => {
-                  downloadImage(src, img.dataset.name)
-                  .then(() => { console.log('The image has been downloaded');  })
-                  .catch(err => {console.log('Error downloading image: ', err);});
-                })
-                .addClass("text-3xl").html("&#x2b07;").appendTo(modal).fadeIn(delai);
-          
-
-
-                /* Prompts informations */
-                var info2=$('<div id="promptInfo">').css({
-                  position: 'absolute',
-                  bottom: '0px',
-                  left: '0px',
-                  color: '#ffffff',
-                  fontSize: '12px',
-                  opacity:1,
-                  color:'#fff',
-                  width: '100%' 
-                })
-                .addClass("")
-                .html(decodeFooocusJSON(json).html).appendTo(modal);
-            
-                var metadata=$('<div id="divIMGMetaBig">').css({
-                  position: 'absolute',
-                  top: '-42px',
-                  left: '5px',
-                  color: '#ffffff',
-                  fontSize: '14px',
-                  fontWeight: 'normal',
-                  textAlign: 'left',
-                  textShadow: '-2px 0px 2px #000, 0px 2px 2px #000, 2px 0px 2px #000, 0px -2px 2px #000' 
-                }).html("Metadata: Click to copy all to Clipboard")
-                .on("click", function(e) {
-                  $(e.target).addClass("flash");
-                  copyMetadatatoClipboard(json);
-                })
-                .appendTo(info2);
-
-                updateImageSize();
-
-
-                /* Navigation between zoomed images */
-                function changeImage(index, way, max) {
-                  let newIndex=index+way;
-                  if (newIndex==0) {
-                    new jBox('Notice', {
-                      content: "No image before",
-                      theme: 'TooltipDark',
-                      attributes: { x: 'right', y: 'bottom' }
-                    });  
-                    return;
-                  }
-                  if (newIndex>max) {
-                    new jBox('Notice', {
-                      content: "No image after",
-                      theme: 'TooltipDark',
-                      attributes: { x: 'right', y: 'bottom' }
-                    });  
-                    return;
-                  }
-                  removeModal();
-                  zoomImage(document.querySelector("#img-load-detection-"+newIndex), 0);
-                }
-
-                $('body').on('keyup.modal-close', function(e) {
-                  if (e.key === 'Escape') {
-                    removeModal();
-                  }
-                });
-
-                $('body').on('keyup.modal-close', function(e) {
-                  if (e.keyCode === 37) { $("#previousImage").click(); }
-                  if (e.keyCode === 39) { $("#nextImage").click(); }
-                });
-
-
-
-                new jBox('Tooltip', {
-                  attach: '.tooltip',
-                  theme: 'TooltipDark'
-                });
-              }
+              */
 
 
             }
@@ -1216,158 +1508,7 @@ File Version 2024-07-01/A1
 
 
 
-            /* Copies all metadata json to clipboard and displays instructions block */
-            function copyMetadatatoClipboard(json) {
-              let data=decodeFooocusJSON(json);
-              navigator.clipboard.writeText(JSON.stringify(data.copy));
-              new jBox('Notice', {
-                content: "Metadatas are copied to clipboard.<br> Paste it on prompt textarea to regenerate this image.<br>Then click on 'Load Parameters' button and click on 'Generate' button",
-                theme: 'TooltipDark',                
-                attributes: { x: 'right', y: 'bottom' }
-              });
-            }
 
-
-            /* Return decoded JSON with all datas usable and an HTML content */
-            function decodeFooocusJSON(json) {
-              try {
-                json=JSON.parse(json);
-              } catch(err) {
-                console.log("Error parse JSON");
-                data.html="ERROR PARSE JSON"
-                return data
-              }
-
-              let version="?";
-              if (typeof json.Version !== "undefined") version=json.Version;
-
-              json.copy={};
-              json.copy["Prompt"]=json["Prompt"];
-              json.copy["Negative Prompt"]=json["Negative Prompt"];
-              json.copy["Fooocus V2 Expansion"]=json["Fooocus V2 Expansion"];
-              json.copy["Styles"]=json["Styles"];
-              json.copy["Performance"]=json["Performance"];
-              json.copy["Resolution"]=json["Resolution"];
-              json.copy["Sharpness"]=json["Sharpness"];
-              json.copy["Guidance Scale"]=json["Guidance Scale"];
-              json.copy["ADM Guidance"]=json["ADM Guidance"];
-              json.copy["Base Model"]=json["Base Model"];
-              json.copy["Refiner Model"]=json["Refiner Model"];
-              json.copy["Refiner Switch"]=json["Refiner Switch"];
-              json.copy["Sampler"]=json["Sampler"];
-              json.copy["Scheduler"]=json["Scheduler"];
-              json.copy["Seed"]=json["Seed"];
-              json.copy["Version"]=version;
-
-              json.styles=[];
-              if (json.Styles!="[]") {
-                let reg=new RegExp("(')", "g");
-                json.styles=json.Styles.replace("[","").replace(reg,"").replace("]","").split(", ");
-              }
-
-              if (typeof json.crudLoras !== "undefined") {
-                /* After v2.1.852, loras are captured differently by DOMparser */
-                json.loras=[];
-                for (let k in json.crudLoras) {
-                  let explode=json.crudLoras[k].replace(" : ",":").split(":");
-                  let weight=explode[1];
-                  let lora=explode[0];
-                  json.loras.push({name: lora, weight: weight});
-                }
-              } else {
-                json.loras=[];
-                for (let k in json) {
-                  if (k.substr(0,6)=="LoRA [") {
-                    let weight=json[k];
-                    let lora=k.replace("LoRA [","").replace("] weight","");
-                    json.loras.push({name: lora, weight: weight});
-                  }
-                }
-              }
-
-              /* Adds Lora to json.copy */
-              for (let i=0; i<json.loras.length; i++) {
-                json.copy["LoRA "+(i+1)]=json.loras[i].name+" : "+json.loras[i].weight;
-              }
-
-              json.html=`
-                <span class="metadatas" onclick="toggleMetadatas()">Show/Hide Metadatas &#x1F440;</span>
-                <div class="containerData flex flex-wrap">
-                  <div class="blockData sm:basis-2/5 basis-full"> 
-                    <div class="titreBlockData">Settings</div>
-                    <div class="itemData"><span class="labelItemData">Prompt</span> <span class="valuePromptData copy">`+json["Prompt"]+`</span></div>`;
-                    if (json["Negative Prompt"]=="") {
-                      json.html+=`<div class="itemData"><span class="labelItemData">Negative Prompt</span> <span class="none">none</span></div>`;
-                    } else {
-                      json.html+=`<div class="itemData"><span class="labelItemData">Negative Prompt</span> <span class="valuePromptData copy">`+json["Negative Prompt"]+`</span></div>`;
-                    }
-
-
-                    json.html+=`<div class="itemData"><span class="labelItemData">Seed</span> <span class="valueItemData copy">`+json["Seed"]+`</span></div>
-                    <div class="itemData">
-                      <span class="labelItemData">Perf.</span> <span class="valueItemData copy">`+json["Performance"]+`</span> 
-                      <span class="labelItemData">Resolution</span> <span class="valueItemData copy">`+json["Resolution"]+`</span>
-                    </div>
-                  </div>
-                  <div class="blockData sm:basis-2/5 basis-full"> 
-                    <div class="titreBlockData">Model & Style</div>
-                    <div class="itemData"><span class="labelItemData">Base Model</span> <span class="valueItemData copy">`+json["Base Model"]+`</span></div>
-                    <div class="itemData"><span class="labelItemData">Refiner Model</span> <span class="valueItemData copy">`+json["Refiner Model"]+`</span>
-                    <span class="labelItemData">Refiner Switch</span> <span class="valueItemData copy">`+json["Refiner Switch"]+`</span></div>
-
-                    <div class="itemData"><span class="labelItemData">Styles</span> `;
-                    for (let i=0; i<json.styles.length; i++) {
-                      json.html+=`<span class="valueItemData copy">`+json.styles[i]+`</span>`;
-                    }
-                    if (json.styles.length==0) {
-                      json.html+=`<span class="noneData">none</span>` ;
-                    }
-                    json.html+=`</div>`;
-                    if (json.styles.length>0) {
-                      json.html+=`<div class="itemData"><span class="labelItemData tooltip" title="Prompt auto completed by Fooocus V2 Style choices">Fooocus V2 Expansion Prompt &#9432;</span> <span class="valuePromptData maxHeight copy">`+json["Fooocus V2 Expansion"]+`</span></div>`;
-                    }
-
-
-                  json.html+=` 
-
-                  <div class="itemData"><span class="labelItemData h-7">LoRAs</span> `;
-                    for (let i=0; i<json.loras.length; i++) {
-                      json.html+=`<div class="h-7"><span class="valueItemData copy">`+json.loras[i].name.replace(".safetensors","")+"</span> Weight: <b>"+json.loras[i].weight+`</b></div>`;
-                    }
-                    json.html+=`</div>
-
-
-                  </div>
-                  <div class="blockData sm:basis-1/5 basis-full"> 
-                    <div class="titreBlockData">Advance</div>                 
-                  
-                    
-                    <div class="itemData"><span class="labelItemData">Guid.</span> <span class="valueItemData copy">`+json["Guidance Scale"]+`</span>                     
-                    <span class="labelItemData">Sharp.</span> <span class="valueItemData copy">`+json["Sharpness"]+`</span></div>
-                    <div class="titreBlockData">Dev. Debug Mode</div>                 
-
-                    <div class="itemData"><span class="labelItemData"> ADM</span> <span class="valueItemData copy">`+json["ADM Guidance"]+`</span></div>
-                    <div class="itemData"><span class="labelItemData"> Sampler</span> <span class="valueItemData copy">`+json["Sampler"]+`</span></div>
-                    <div class="itemData"><span class="labelItemData"> Scheduler</span> <span class="valueItemData copy">`+json["Scheduler"]+`</span></div>
-                  </div>
-                </div>
-                `;
-
-
-              return json;
-            }
-
-            // Secure text from html inline
-            function htmlentities(value){if (value) { return $("<div>").text(value).html() } else { return '' } }
-
-            // Reduce a fraction by finding the Greatest Common Divisor and dividing by it.
-            function reduce(numerator, denominator){
-              var gcd = function gcd(a,b){
-                return b ? gcd(b, a%b) : a;
-              };
-              gcd = gcd(numerator,denominator);
-              return [numerator/gcd, denominator/gcd];
-            }
 
 
           });
@@ -1375,6 +1516,151 @@ File Version 2024-07-01/A1
         });
       }
 
+
+      /* Return decoded JSON with all datas usable and an HTML content */
+      function decodeFooocusJSON(json) {
+        try {
+          json=JSON.parse(json);
+        } catch(err) {
+          console.log("Error parse JSON");
+          data.html="ERROR PARSE JSON"
+          return data
+        }
+
+        let version="?";
+        if (typeof json.Version !== "undefined") version=json.Version;
+
+        json.copy={};
+        json.copy["Prompt"]=json["Prompt"];
+        json.copy["Negative Prompt"]=json["Negative Prompt"];
+        json.copy["Fooocus V2 Expansion"]=json["Fooocus V2 Expansion"];
+        json.copy["Styles"]=json["Styles"];
+        json.copy["Performance"]=json["Performance"];
+        json.copy["Resolution"]=json["Resolution"];
+        json.copy["Sharpness"]=json["Sharpness"];
+        json.copy["Guidance Scale"]=json["Guidance Scale"];
+        json.copy["ADM Guidance"]=json["ADM Guidance"];
+        json.copy["Base Model"]=json["Base Model"];
+        json.copy["Refiner Model"]=json["Refiner Model"];
+        json.copy["Refiner Switch"]=json["Refiner Switch"];
+        json.copy["Sampler"]=json["Sampler"];
+        json.copy["Scheduler"]=json["Scheduler"];
+        json.copy["Seed"]=json["Seed"];
+        json.copy["Version"]=version;
+
+        json.styles=[];
+        if (json.Styles!="[]") {
+          let reg=new RegExp("(')", "g");
+          json.styles=json.Styles.replace("[","").replace(reg,"").replace("]","").split(", ");
+        }
+
+        if (typeof json.crudLoras !== "undefined") {
+          /* After v2.1.852, loras are captured differently by DOMparser */
+          json.loras=[];
+          for (let k in json.crudLoras) {
+            let explode=json.crudLoras[k].replace(" : ",":").split(":");
+            let weight=explode[1];
+            let lora=explode[0];
+            json.loras.push({name: lora, weight: weight});
+          }
+        } else {
+          json.loras=[];
+          for (let k in json) {
+            if (k.substr(0,6)=="LoRA [") {
+              let weight=json[k];
+              let lora=k.replace("LoRA [","").replace("] weight","");
+              json.loras.push({name: lora, weight: weight});
+            }
+          }
+        }
+
+        /* Adds Lora to json.copy */
+        for (let i=0; i<json.loras.length; i++) {
+          json.copy["LoRA "+(i+1)]=json.loras[i].name+" : "+json.loras[i].weight;
+        }
+
+        console.log('getParam("displayMetaBlock")')
+        console.log(getParam("displayMetaBlock"))
+        json.html=`
+          <span class="metadatas" onclick="toggleMetadatas()">Show/Hide Metadatas &#x1F440; </span>
+          <div class="containerData flex flex-wrap " style="`+(getParam("displayMetaBlock")!="true" ? "display: none" : "display: flex")+`">
+            <div class="blockData sm:basis-2/5 basis-full"> 
+              <div class="titreBlockData">Settings</div>
+              <div class="itemData"><span class="labelItemData">Prompt</span> <span class="valuePromptData copy">`+json["Prompt"]+`</span></div>`;
+              if (json["Negative Prompt"]=="") {
+                json.html+=`<div class="itemData"><span class="labelItemData">Negative Prompt</span> <span class="none">none</span></div>`;
+              } else {
+                json.html+=`<div class="itemData"><span class="labelItemData">Negative Prompt</span> <span class="valuePromptData copy">`+json["Negative Prompt"]+`</span></div>`;
+              }
+
+
+              json.html+=`<div class="itemData"><span class="labelItemData">Seed</span> <span class="valueItemData copy">`+json["Seed"]+`</span></div>
+              <div class="itemData">
+                <span class="labelItemData">Perf.</span> <span class="valueItemData copy">`+json["Performance"]+`</span> 
+                <span class="labelItemData">Resolution</span> <span class="valueItemData copy">`+json["Resolution"]+`</span>
+              </div>
+            </div>
+            <div class="blockData sm:basis-2/5 basis-full"> 
+              <div class="titreBlockData">Model & Style</div>
+              <div class="itemData"><span class="labelItemData">Base Model</span> <span class="valueItemData copy">`+json["Base Model"]+`</span></div>
+              <div class="itemData"><span class="labelItemData">Refiner Model</span> <span class="valueItemData copy">`+json["Refiner Model"]+`</span>
+              <span class="labelItemData">Refiner Switch</span> <span class="valueItemData copy">`+json["Refiner Switch"]+`</span></div>
+
+              <div class="itemData"><span class="labelItemData">Styles</span> `;
+              for (let i=0; i<json.styles.length; i++) {
+                json.html+=`<span class="valueItemData copy">`+json.styles[i]+`</span>`;
+              }
+              if (json.styles.length==0) {
+                json.html+=`<span class="noneData">none</span>` ;
+              }
+              json.html+=`</div>`;
+              if (json.styles.length>0) {
+                json.html+=`<div class="itemData"><span class="labelItemData tooltip" title="Prompt auto completed by Fooocus V2 Style choices">Fooocus V2 Expansion Prompt &#9432;</span> <span class="valuePromptData maxHeight copy">`+json["Fooocus V2 Expansion"]+`</span></div>`;
+              }
+
+
+            json.html+=` 
+
+            <div class="itemData"><span class="labelItemData h-7">LoRAs</span> `;
+              for (let i=0; i<json.loras.length; i++) {
+                json.html+=`<div class="h-7"><span class="valueItemData copy">`+json.loras[i].name.replace(".safetensors","")+"</span> Weight: <b>"+json.loras[i].weight+`</b></div>`;
+              }
+              json.html+=`</div>
+
+
+            </div>
+            <div class="blockData sm:basis-1/5 basis-full"> 
+              <div class="titreBlockData">Advance</div>                 
+            
+              
+              <div class="itemData"><span class="labelItemData">Guid.</span> <span class="valueItemData copy">`+json["Guidance Scale"]+`</span>                     
+              <span class="labelItemData">Sharp.</span> <span class="valueItemData copy">`+json["Sharpness"]+`</span></div>
+              <div class="titreBlockData">Dev. Debug Mode</div>                 
+
+              <div class="itemData"><span class="labelItemData"> ADM</span> <span class="valueItemData copy">`+json["ADM Guidance"]+`</span></div>
+              <div class="itemData"><span class="labelItemData"> Sampler</span> <span class="valueItemData copy">`+json["Sampler"]+`</span></div>
+              <div class="itemData"><span class="labelItemData"> Scheduler</span> <span class="valueItemData copy">`+json["Scheduler"]+`</span></div>
+            </div>
+          </div>
+          `;
+
+
+        return json;
+      }
+
+
+      // Secure text from html inline
+      function htmlentities(value){if (value) { return $("<div>").text(value).html() } else { return '' } }
+
+      // Reduce a fraction by finding the Greatest Common Divisor and dividing by it.
+      function reduce(numerator, denominator){
+        var gcd = function gcd(a,b){
+          return b ? gcd(b, a%b) : a;
+        };
+        gcd = gcd(numerator,denominator);
+        return [numerator/gcd, denominator/gcd];
+      }
+  
 
       /* Get all outputs directory working dates */
       var workingDates=[], detailDates=[];
@@ -1416,11 +1702,12 @@ File Version 2024-07-01/A1
         Promise.all(requests)
         .then((results) => {
           new jBox('Notice', {
-            content: "Calendar working date generation success. <br>Only days with images will be loaded.<br>Click on calendar &#128197; above to view all days with generation work.",
+            content: "Click on calendar &#128197; above to view all days with generation work.",
             theme: 'TooltipDark',
             attributes: {x: "left", y: "top"},
             offset: { x: 20, y: 45 }
           }); 
+          $("a#nearestDate").show().click(function() {loadDay(0)})
           workingDates.sort(); /* Force sort because promise are async */
           workingDates.reverse();
           return;
@@ -1435,7 +1722,9 @@ File Version 2024-07-01/A1
       function toggleMetadatas() {
         $("div.containerData").toggle();
         updateImageSize();
+        saveParam("displayMetaBlock", $("div.containerData").css("display")=="none"?false:true);
       }
+
       /* Update image size container to always fit in visible modal zone */
       function updateImageSize() {
         if ($("div.containerData").css("display")=="none") { 
@@ -1486,6 +1775,9 @@ File Version 2024-07-01/A1
       }
       
 
+
+      /* On App Init */
+      loadConfig();
       setTimeout(calendarGeneration, 500)
 
     </script>
@@ -1599,8 +1891,7 @@ File Version 2024-07-01/A1
 
       @media (max-width:481px)  { 
         span.valuePromptData, span.valueItemData {
-          margin: 2px;
-    
+          margin: 2px;    
         }
         div.itemData {
          padding: 2px;
@@ -1611,6 +1902,7 @@ File Version 2024-07-01/A1
         div.blockData {
           padding:2px 3px;
         }
+        .smartphoneHidden { display:none; }
       }
 
 
@@ -1653,6 +1945,7 @@ File Version 2024-07-01/A1
       label.labelImgPerPage {
          padding-right:12px; 
       }
+
 
       div#calendar {
         display: inline-block;
@@ -1703,6 +1996,34 @@ File Version 2024-07-01/A1
         background: #0B0F19;
       }
 
+      img.styleImage {
+        border-radius: 4px;
+      }
+
+      @media (min-width:481px)  { 
+        div.styleContainer {
+          position: relative;
+        }
+        span.styleTitle {
+          position:absolute;
+          top:92px;
+          left:0px;
+          width:128px;
+          height:36px;
+          font-size:12px;
+          line-height: 12px;
+          font-weight: bold;
+          background-color: #fff;
+          opacity: 0.7;
+          color: #000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+
+        }
+      }
+
 
       .jBox-TooltipDark  .jBox-content {
         background-color: #ba00bd !important;
@@ -1712,6 +2033,23 @@ File Version 2024-07-01/A1
         font-size:14px !important;
         box-shadow: 5px 5px 5px #000;
       }
+
+      .jBox-TooltipNewImage  .jBox-content {
+        background-color: #000 !important;
+        border:1px solid #ba00bd !important;
+        color:#fff !important;
+        font-weight: bold !important;
+        font-size:14px !important;
+        box-shadow: 5px 5px 5px #000;
+        text-align: center;
+      }
+
+      img.imageNotice {
+        max-width:320px;
+        max-height: 320px;
+        
+      }
+
 
     </style>
 

@@ -68,6 +68,13 @@ The idea and initial work is inspired by @sngazm at https://github.com/lllyasvie
 
 ## Update log
 
+1.3.0 (thanks @ItsNoted for some of these ideas)
+- Images of style are displayed on batch details
+- Click on image thumbnail open zoomed image without targeting the magnifying glass
+- Check for new image on today today's folder
+- Could play sound when a new image is detected on today's folder
+- Remember configuration choices (grid size, autoreload, sound on, display details, display metadata, ...)
+
 1.2.0 Calendar Release
 - View all the working day with images
 - Reduce the size of batch details
@@ -82,7 +89,7 @@ The idea and initial work is inspired by @sngazm at https://github.com/lllyasvie
 
 
 Next 1.x will be a more advanced version with :
-
+- Liked images listing
 - Better UI integration in Fooocus UI (work on CSS to optimize size and position)
 - Download Image button with metadata EXIF prompt auto added
 - Download alls images of a batch in one click
