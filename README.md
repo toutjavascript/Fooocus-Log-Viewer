@@ -18,7 +18,7 @@ You will be able to :
 - Click an image to view it bigger with all prompt details
 - Copy the prompt datas (seed, models, styles, loras, ...)
 
-## Installation of Fooocus Viewer Log
+## Installation of Fooocus Log Viewer
 
 Installation is very easy. No npm nor pip install. Files are in archive and load extra JS and CSS from CDN.
 
