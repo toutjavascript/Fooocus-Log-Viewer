@@ -70,6 +70,9 @@ The idea and initial work is inspired by @sngazm at https://github.com/lllyasvie
 
 
 ## Update log
+1.4.0 
+- Hide images deleted on folder
+- Show number of images deleted
 
 1.3.0 (thanks @ItsNoted for some of these ideas)
 - Images of style are displayed on batch details
@@ -92,6 +95,7 @@ The idea and initial work is inspired by @sngazm at https://github.com/lllyasvie
 
 
 Next 1.x will be a more advanced version with :
+- Search for text in prompt history
 - Liked images listing
 - Better UI integration in Fooocus UI (work on CSS to optimize size and position)
 - Download Image button with metadata EXIF prompt auto added
