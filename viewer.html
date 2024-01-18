@@ -10,7 +10,7 @@ https://github.com/lllyasviel/Fooocus/discussions/693#discussioncomment-7853694
 Modestly updated by https://github.com/toutjavascript
                     https://www.toutjavascript.com
 
-File Version 2024-01-12/A1
+File Version 2024-01-18/A1
 -->
 
 <html lang="us">
@@ -44,10 +44,9 @@ File Version 2024-01-12/A1
         {item: "displayMetaBlock", type:"checkbox", label:"View Meta Detail on Zoomed Image", value: true},
         {item: "nbColumns", type:"integer", label:"Number of columns in the grid", value: 3},
         {item: "nbImagePerPage", type:"integer", label:"Number of images displayed per page", value: 32},
-
-
-
       ];
+      var workingDates=[], detailDates=[];
+      var nbImageNotFoundByBatches=[]; /* Number of images not found by batch (deleted by user) : use to display on each batch block */
 
 
 
@@ -112,8 +111,18 @@ File Version 2024-01-12/A1
         });    
       }
       
-      /* Create an empty image */
-      function getNotFoundImg() {
+      /* Create an empty image 
+         Update batch label error
+      */
+      function getNotFoundImg(batchNumber) {
+        if (typeof nbImageNotFoundByBatches[batchNumber]=="undefined") {
+          nbImageNotFoundByBatches[batchNumber]=0;
+        }
+        nbImageNotFoundByBatches[batchNumber]++;
+
+        $("span#batchNumber-"+batchNumber).html(" / "+nbImageNotFoundByBatches[batchNumber]+" not found").attr("title", "Probably deleted by user");
+
+        /* Generate image not found */
         let svgElement = document.createElementNS("http://www.w3.org/2000/svg", 'svg'); // Create a new SVG element
         svgElement.setAttribute('width', '500');    // Set the width and height of the SVG canvas
         svgElement.setAttribute('height', '500');
@@ -170,8 +179,6 @@ File Version 2024-01-12/A1
           return autoReload;
         });
         React.useEffect(() => {
-          console.log("autorelod=")
-          console.log(autoReload)
           localStorage.setItem("autoReload", autoReload.toString());
         }, [autoReload]);
 
@@ -270,7 +277,6 @@ File Version 2024-01-12/A1
         React.useEffect(fetchData, [date]);
 
         React.useEffect(() => {
-          setPlaySound(getParam("playSound")=="true"?true:false);
 
           if (autoReload) {
             const interval = setInterval(() => {
@@ -512,6 +518,7 @@ File Version 2024-01-12/A1
         const batchData = getBatchData(sortedData);
 
         React.useEffect(() => {
+          nbImageNotFoundByBatches=[];          
 
           setShowDetail(getParam("displayDetails")=="true"?true:false);
           setShowDiff(getParam("displayDiff")=="true"?true:false);
@@ -676,7 +683,7 @@ File Version 2024-01-12/A1
               <p className="flex justify-between">
                 <span className="text-base mb-0">
                   <strong>Batch {batch.batchNumber}</strong> ({numBatchImages}{" "}
-                  Images)
+                  Images<span id={"batchNumber-"+batch.batchNumber} class="batchError"></span>)
                 </span>
                 <span>{batch.timeStr}</span>
               </p>
@@ -753,10 +760,11 @@ File Version 2024-01-12/A1
                         data-name={data.src}
                         data-json={JSON.stringify(data)}
                         data-error="false"
+                        data-batch={batch.batchNumber}
                         onError={ (evt => {
-                          console.log("error on "+evt.target.src);
                           evt.target.dataset.error="true";
-                          evt.target.src=getNotFoundImg();
+                          evt.target.src=getNotFoundImg(evt.target.dataset.batch);
+                          $(evt.target).parent().hide();
                         }) }
                         width="100%"
                       />
@@ -1437,9 +1445,10 @@ File Version 2024-01-12/A1
           i.addEventListener("load", function() {
             image.setAttribute("data-width", i.width)
             image.setAttribute("data-height", i.height)
-            $(image).addClass("cursor-zoom-in");
-            if (typeof image.dataset.onclick == "undefined") {
+            if ((typeof image.dataset.onclick == "undefined")&&(image.dataset.error=="false")) {
               /* Add only one eventClickListener, necessary because multiple calls*/
+              /* Add only if image is not broken */
+              $(image).addClass("cursor-zoom-in");
               image.setAttribute("data-onclick", "1");
               image.addEventListener("click", function(evt) {
                 zoomImage(evt.target);
@@ -1663,7 +1672,6 @@ File Version 2024-01-12/A1
   
 
       /* Get all outputs directory working dates */
-      var workingDates=[], detailDates=[];
       function calendarGeneration() {
         console.log("Working date calendar generation");
         getAllDates();      
@@ -2022,6 +2030,11 @@ File Version 2024-01-12/A1
           border-radius: 4px;
 
         }
+      }
+
+      span.batchError {
+        color:#f33;
+        font-weight: bold;
       }
 
 
