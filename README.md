@@ -12,6 +12,7 @@ Fooocus Log Viewer can be integrated in UI with auto resize to fully fill the us
 
 You will be able to :
 
+- Search all your images by prompts/models/styles
 - Browse all your images by dates and batches
 - Choose the grid size
 - View prompts differences
@@ -70,6 +71,11 @@ The idea and initial work is inspired by @sngazm at https://github.com/lllyasvie
 
 
 ## Update log
+
+1.5.0 New search box
+- Search for all images with prompt/models/styles
+- Auto-refresh with new generated images
+
 1.4.0 
 - Hide images deleted on folder
 - Show number of images deleted

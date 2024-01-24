@@ -10,7 +10,7 @@ https://github.com/lllyasviel/Fooocus/discussions/693#discussioncomment-7853694
 Modestly updated by https://github.com/toutjavascript
                     https://www.toutjavascript.com
 
-File Version 2024-01-18/A1
+File Version 2024-01-24/A1
 -->
 
 <html lang="us">
@@ -18,7 +18,14 @@ File Version 2024-01-18/A1
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Viewer:Fooocus Log Viewer</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
+
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+ 
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css" rel="stylesheet" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -27,11 +34,14 @@ File Version 2024-01-18/A1
 
     <link href="https://cdn.jsdelivr.net/gh/StephanWagner/jBox@v1.3.3/dist/jBox.all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/gh/StephanWagner/jBox@v1.3.3/dist/jBox.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@honatas/multi-select-webcomponent/dist/multi-select-webcomponent.min.js" crossorigin="anonymous"></script>
   </head>
 
   <body class="text-white">
     <div id="app"></div>
     <script type="text/babel">
+
+      window.customElements.define('multi-select', MultiselectWebcomponent);
 
       var configs=[
         {item: "autoReloadToday", type: "checkbox", label: "Auto Reload (only on today page)", value: false},
@@ -45,9 +55,19 @@ File Version 2024-01-18/A1
         {item: "nbColumns", type:"integer", label:"Number of columns in the grid", value: 3},
         {item: "nbImagePerPage", type:"integer", label:"Number of images displayed per page", value: 32},
       ];
+
+      var nbDaysToScan=250; /* Number of days to scan for working dates befor today */
+
       var workingDates=[], detailDates=[];
+      var allBatches=[], allModels=[], allStyles=[], allImages=[]; 
       var nbImageNotFoundByBatches=[]; /* Number of images not found by batch (deleted by user) : use to display on each batch block */
 
+      var searchResults=[];           /* Array of images found by searchBox */
+      var nbImageNotFoundBySearch=0;  /* Number of images not found on search via searchBox */
+      var modeSearch=false;           /* Flag that indicates if searchBox is active */
+      var promiseAll=false;           /* Flag that indicates if all images are loaded: calendar and search button could be active */
+      var searchPaginationPage=0;     /* Actual Pagination page for search results */
+      var searchPaginationNbImage=60; /* Number of images per page for search results */
 
 
       function getParam(item) {
@@ -65,11 +85,8 @@ File Version 2024-01-18/A1
       function goPlaySound() {
         if (localStorage.getItem("playSound")=="true") {
           var audio =new Audio("https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3");
-          console.log("run audio");
           audio.play();
-        } else {
-          console.log("playSound is off")
-        }
+        } 
       }
 
       /* Detection of new Image on today folder */
@@ -105,6 +122,44 @@ File Version 2024-01-18/A1
               detailDates[today]=nb;
             }
             toggleCalendar(); toggleCalendar();  /* Update div#calendarList*/
+
+            /* Reprocess of today log.html */
+            var newData=parseLog(text);
+            /* Remove all images where image.dt=today from allImages */
+            for (let i=0; i<allImages.length; i++) {
+              if (allImages[i].dt==today) {
+                allImages.splice(i,1);
+                i--;
+              }
+            }
+
+            /* Re-add today images to allImages */
+            for (let i=newData.data.length-1; i>=0; i--) {
+              let img=newData.data[i];
+              img.dt=today;
+              if (allModels.includes(img["Base Model"])==false) {
+                allModels.push(img["Base Model"]);
+              }
+
+              img.styles=[];
+              if (img.Styles!="[]") {
+                let reg=new RegExp("(')", "g");
+                img.styles=img.Styles.replace("[","").replace(reg,"").replace("]","").split(", ");
+              }
+      
+              for (let j=0; j<img.styles.length; j++) {
+                if (allStyles.includes(img.styles[j])==false) {
+                  allStyles.push(img.styles[j]);
+                }
+              }
+
+              allImages.unshift(img);
+            }
+
+            /* if mode Search active, refresh search box display */
+            if (modeSearch) {
+              goSearch(false);
+            }
           }
 
           setTimeout(checkNewImage, 5000);
@@ -317,6 +372,7 @@ File Version 2024-01-18/A1
               >
                 ▶️
               </button>
+
               <input id="changeCalendar"
                 className="hidden"
                 type="text"
@@ -326,6 +382,12 @@ File Version 2024-01-18/A1
                 }}              
               />
 
+                <button id="config" onClick={() => viewSearchBox() }
+                  className="px-2 mx-2 text-xl "
+                  type="text"
+                  >
+                  &#x1f50d;
+                </button>
 
 
 
@@ -374,7 +436,11 @@ File Version 2024-01-18/A1
                 isLoading && <span className="text-gray-500">Loading...</span>
               )}
             </div>
-            <div id="calendarList" class="px-4 pt-2 pb-1"></div>
+
+            <div id="searchBox" class="px-2 pt-2 pb-1"></div>
+
+            <div id="calendarList" class="px-2 pt-2 pb-1"></div>
+
             {!isLoading && (
               <>
                 {isCorsError && (
@@ -432,6 +498,321 @@ File Version 2024-01-18/A1
         // Clears the entire local storage
         localStorage.clear();
       }
+
+
+      /* Activate the search mode */
+      function viewSearchBox() {
+        console.log("Start viewSearchBox()");
+        deleteMouseOverThumbnail();
+
+        if (!promiseAll) {
+          new jBox('Notice', {
+            content: "All logs and images are not processed. Please wait...",
+            theme: 'TooltipDark',
+            attributes: {x: "right", y: "bottom"},
+            offset: { x: 20, y: 45 }
+          }); 
+          return;
+        }
+
+        if (modeSearch) {
+          modeSearch=false;
+          $("div#searchBox").hide();
+          $("div#reactBox").show();
+          return;
+        } else {
+          modeSearch=true;
+          $("div#searchBox").show();
+          $("div#reactBox").hide();
+          $("div#calendarList").hide();
+        }
+
+
+
+        /* First opening */
+        if ($("div#searchBox").html()=="") {
+          let m="";
+          for (let i=0; i<allModels.length; i++) {
+            m+="<option value='"+allModels[i].replace(".safetensor","")+"'>"+allModels[i].replace(".safetensor","")+"</option>";
+          }
+          let s="";
+          for (let i=0; i<allStyles.length; i++) {
+            s+="<option value='"+allStyles[i]+"'>"+allStyles[i]+"</option>";
+          }
+
+          let html=`
+
+          <form name="formSearch" id='formSearch' class="p-1 rounded" onsubmit='return false' method="post">
+            <div class='text-center' ><strong>SearchBox Active : ${allImages.length} images in ${workingDates.length} outputs folders</strong></div>
+
+            <label>
+              Text in prompts (AND):         
+              <input type='text' name='searchText' id='searchText' class='p-2' placeholder='Type text to search'>
+            </label>
+
+            <label>
+              Models (AND):
+              <multi-select name='searchModel' id='searchModel' class='p-1'
+              
+              selecteditem="badge cursor-pointer bg-primary pt-1 m-1"
+              dropdown="border"
+              dropdownitem="p-1"
+              selectallbutton="btn btn-sm btn-light"
+              selectallbuttonspan="bi-check2-all text-success"
+              clearbutton="btn btn-sm btn-light"
+              clearbuttonspan="bi-x-circle text-danger">
+                ${m}
+              </multi-select>
+            </label>
+
+            <label>
+              Styles (OR):
+              <multi-select name='searchStyle' id='searchStyle' class='p-1'
+              selecteditem="badge bg-primary pt-1 m-1"
+              dropdown="border"
+              dropdownitem="p-1"
+              selectallbutton="btn btn-sm btn-light"
+              selectallbuttonspan="bi-check2-all text-success"
+              clearbutton="btn btn-sm btn-light"
+              clearbuttonspan="bi-x-circle text-danger">
+                ${s}
+              </multi-select>
+            </label>
+            <button class='text-lg bg-lime-500 hover:bg-lime-700 px-2 py-1.5 leading-5 rounded-md font-semibold text-white' onclick='return goSearch()'>Search</button>
+
+            <button class='text-lg bg-slate-500 hover:bg-slate-700 px-2 py-1.5 leading-5 rounded-md font-semibold text-white' onclick='viewSearchBox()'>Quit Search Mode</button>
+          </form>
+          <div id="resultBox" class="px-0 mt-1 "></div>
+
+          `;
+          $("div#searchBox").html(html);
+        }
+      }
+
+      /* Display all images with pagination */
+      function displaySearchResult() {
+        deleteMouseOverThumbnail();
+        nbImageNotFoundBySearch=0;
+        console.log("searchPaginationPage="+searchPaginationPage);
+
+
+        if (searchResults.length==0) {
+          $("div#resultBox").html("<div class='text-lg text-center m-5 p-5'>&#x2205; No images found with this search options</div>");        
+        } else {
+          let html="<div class='text-lg text-center'>Search results: "+searchResults.length+" images found  <span id='nbImageNotFoundBySearch' class='batchError'></span></div>";
+
+          let pagination="";
+
+          if (searchResults.length>searchPaginationNbImage) {
+            let buttonPrevious="<button class='button-pagination text-lg bg-sky-500 hover:bg-sky-700 px-2 py-1.5 leading-5 rounded-md font-semibold text-white' onclick='searchPaginationPage--; displaySearchResult()'>Previous</button>";
+            if (searchPaginationPage==0) {
+              buttonPrevious="<button class='button-pagination text-lg bg-slate-500  px-2 py-1.5 leading-5 rounded-md font-semibold text-white' >Previous</button>";
+            }
+
+            let buttonNext="<button class='button-pagination text-lg bg-sky-500 hover:bg-sky-700 px-2 py-1.5 leading-5 rounded-md font-semibold text-white' onclick='searchPaginationPage++; displaySearchResult()'>Next</button>";
+            if (searchPaginationPage==Math.ceil(searchResults.length/searchPaginationNbImage)-1) {
+              buttonNext="<button class='button-pagination text-lg bg-slate-500  px-2 py-1.5 leading-5 rounded-md font-semibold text-white' >Next</button>";
+            }
+
+            let combo=`<select class="px-2" id="combo-pagination" onchange="searchPaginationPage=parseInt(this.options[this.selectedIndex].value); displaySearchResult()">`;
+            for (let i=0; i<Math.ceil(searchResults.length/searchPaginationNbImage); i++) {
+              combo+=`<option value="${i}" ${i==searchPaginationPage?"selected":""}>${i+1}</option>`;
+            }
+            combo+="</select>";
+
+            pagination=`<div class="flex flex-row justify-center text-base">
+              ${buttonPrevious}
+              <span class="pagination">Page </span> ${combo} <span class="pagination"> of ${Math.ceil(searchResults.length/searchPaginationNbImage)}</span>
+              ${buttonNext}
+            </div>`;
+          }
+
+
+          html+=pagination;
+
+          html+=`<div id="containerFilesX">
+            <div id="filesX" class="grid gap-1 p-1 grid-cols-${getParam("nbColumns")} imgViewer">`;
+
+          for (let i=(searchPaginationPage)*searchPaginationNbImage; i<Math.min(searchResults.length, (searchPaginationPage+1)*searchPaginationNbImage); i++) {
+            let data=searchResults[i];
+            let json=JSON.stringify(data).replace(/"/g, "&quot;");
+            html+=`
+            <div class="col p-1 imgViewer">
+              <img src="/file=outputs/${data.dt}/${data.src}" 
+              loading="lazy" 
+              alt="${data.src}" 
+              class="responsive thumbnail cursor-zoom-in" 
+              alt={data.src}
+              data-seed="${data.Seed}"
+              data-name="${data.src}"
+              data-json="${json}"
+              data-error="false"
+              onerror="errorImageSearch(this)"
+              onload="loadImageSearch(this, ${i}, ${searchResults.length})"
+              onmouseover="mouseOverThumbnailSearch(this)"
+              />
+              <div class="fileName">${data.src}</div>
+            </div>`; 
+          }
+          html+=`</div>
+          </div>`;
+
+          html+=pagination;
+
+          $("div#resultBox").html(html);
+
+        }      
+      }
+
+
+      /* Search text in all prompts */
+      function goSearch(newSearch=true) {
+        deleteMouseOverThumbnail();
+        if (newSearch) { /* If refresh when new image detected, newSearch=false */
+          nbImageNotFoundBySearch=0;
+          searchPaginationPage=0;
+        }
+
+        let txt=document.forms["formSearch"].searchText.value.trim();
+        let models=document.querySelector("#searchModel").value;
+        let styles=document.querySelector("#searchStyle").value;
+        searchResults=[];
+
+
+        if ((txt=="")&&(models.length==0)&&(styles.length==0)) {
+          $("div#resultBox").html("<div class='text-lg text-center m-5 p-5'>&#x2205; No search options selected</div>");
+          return false;
+        }
+
+        var reg=new RegExp("[ ,;]+", "g");
+
+        for (let i=0; i<allImages.length; i++) {
+          let found=false;
+          let img=allImages[i];
+          if (txt!="") {
+            var mots=txt.split(reg);
+            for (let j=0; j<mots.length; j++) {
+              if (img.Prompt.toLowerCase().indexOf(mots[j].toLowerCase().trim())>=0) {
+                found=true;
+              } else {
+                found=false;
+                break;
+              }
+            }
+          } else {
+            /* Check text: if empty, image is always found */
+            found=true;
+          }
+
+          
+          /* Check Models (or) */
+          if ((models.length>0)&&(found)) {
+            found=false;
+            if (models.includes(img["Base Model"].replace(".safetensor",""))) {
+              found=true;
+            }
+          }
+
+          /* Check Styles (and) */
+          if ((styles.length>0)&&(found)) {
+            for (let j=0; j<styles.length; j++) {
+              if (!img.Styles.includes(styles[j])) {
+                /* If only one style is not in the image, it's not found */
+                found=false;
+              }
+            }
+          }
+
+          if (found) {
+            searchResults.push(img);
+          }
+        }
+        displaySearchResult();
+
+        return false;
+      }
+
+      function mouseOverThumbnailSearch(img) {
+        if (img.dataset.error=="false") {
+          deleteMouseOverThumbnail();
+          
+          $('<div id="divIMGMeta">').css({
+            top: $(img).offset().top+'px',
+            left: $(img).offset().left+'px',
+          }).html('Metadatas: click to copy all')
+          .attr("title", "Click to copy MetaDatas to clipboard")
+          .on("click", function(evt) {
+            evt.stopPropagation();
+            $("div#divIMGMeta").addClass("flash");
+            copyMetadatatoClipboard(img.dataset.json);
+          })
+          .appendTo('body');
+
+          let format=reduce(img.dataset.width, img.dataset.height);
+          $('<div id="divIMGSize">').css({
+            top: ($(img).offset().top+$(img).height()-24)+'px',
+            left: $(img).offset().left+'px'   
+          })
+          .html(img.dataset.width+"×"+img.dataset.height+" ("+format.join("/")+")"+" - "+(img.dataset.size>0?format_filesize(img.dataset.size):""))
+          .appendTo('body');
+          
+          $('<div id="divIMGDownload">').css({
+            top: ($(img).offset().top+$(img).height()-42)+'px',
+            left: ($(img).offset().left+$(img).width()-34)+'px'   
+          }).html('<button id="download" title="Click to download" class="text-2xl" style="display: inline-block; position: absolute; top: 10px; left: 1px; text-align: center;">⬇</button>')
+          .on("click", (evt) => {
+            evt.stopPropagation();
+            downloadImage(img.src, img.dataset.name)
+            .then(() => { console.log('The image has been downloaded');  })
+            .catch(err => {console.log('Error downloading image: ', err);});
+          })
+          .appendTo('body');
+        }
+      }
+
+
+
+      function loadImageSearch(image, index, max) {
+        image.setAttribute("data-index", index);
+        image.setAttribute("id", "img-load-detection-"+index);
+        /* Get images info width, height and filesize */
+        get_filesize(image.src, function(size) {
+          image.setAttribute("data-size", size);
+        });
+        let i=new Image();
+        i.src=image.src;
+        i.addEventListener("load", function() {
+          image.setAttribute("data-width", i.width)
+          image.setAttribute("data-height", i.height)
+          if ((typeof image.dataset.onclick == "undefined")&&(image.dataset.error=="false")) {
+            /* Add only one eventClickListener, necessary because multiple calls*/
+            /* Add only if image is not broken */
+            $(image).addClass("cursor-zoom-in").addClass("img-load-detection");
+            image.setAttribute("data-onclick", "1");
+            image.addEventListener("click", function(evt) {
+              zoomImage(evt.target);
+            })
+
+            $(image).on("mouseover", function(evt) {
+              
+            });
+     
+    
+          }  
+        });
+
+        
+      }
+
+
+      function errorImageSearch(img) {
+        nbImageNotFoundBySearch++;
+        $("span#nbImageNotFoundBySearch").html("(but "+nbImageNotFoundBySearch+" images deleted by user)");
+        $(img).parent().hide();
+        
+      }
+
+
 
       function viewConfig() {
         if ($("#configDiv").length>0) {
@@ -518,7 +899,7 @@ File Version 2024-01-18/A1
         const batchData = getBatchData(sortedData);
 
         React.useEffect(() => {
-          nbImageNotFoundByBatches=[];          
+          nbImageNotFoundByBatches=[];         
 
           setShowDetail(getParam("displayDetails")=="true"?true:false);
           setShowDiff(getParam("displayDiff")=="true"?true:false);
@@ -528,16 +909,6 @@ File Version 2024-01-18/A1
           imgLoadDetection();
         }, [itemsPerPage, dateStr, mode, sortedData]);
 
-        /*
-        React.useEffect(() => {
-          setCurrentPage(1);
-          imgLoadDetection();
-        }, [dateStr]);
-
-        React.useEffect(() => {
-          imgLoadDetection();
-        }, [mode, sortedData]);
-        */
 
         // Calculate the range of data for the current page
         let startIndex, endIndex, numPages, firstImageInPage, lastImageInPage;
@@ -577,7 +948,7 @@ File Version 2024-01-18/A1
         const pageData = [];
         pageData.push(sortedData.slice(startIndex, endIndex));
         return (
-          <div>
+          <div id="reactBox">
             <div className="px-4 py-1 flex flex-row flex-wrap justify-between">
               <div className="sm:basis-1/2 basis-full">
                 <div className="">
@@ -1385,6 +1756,16 @@ File Version 2024-01-18/A1
 
 
       function toggleCalendar() {
+        if (!promiseAll) {
+          new jBox('Notice', {
+            content: "All logs and images are not processed. Please wait...",
+            theme: 'TooltipDark',
+            attributes: {x: "right", y: "bottom"},
+            offset: { x: 20, y: 45 }
+          }); 
+          return;
+        }
+
         if (workingDates.length>0) {
           let list="";
           for (let i=0; i<workingDates.length; i++) {
@@ -1393,6 +1774,10 @@ File Version 2024-01-18/A1
           }
           $("div#calendarList").html(list).toggle();
         }      
+
+        if (modeSearch) {
+          $("div#calendarList").hide();
+        }
       }
       function loadDay(i) {
         $("input#changeCalendar").attr("value", workingDates[i]);
@@ -1411,19 +1796,22 @@ File Version 2024-01-18/A1
         });
       }
 
-
-
-      function imgLoadDetection() {
-
-        console.log("Start imgLoadDetection()")
-
+      function deleteMouseOverThumbnail() {
         /* Thumbnail image */
         $("div#divIMGMeta").remove();
         $("div#divIMGSize").remove();
         $("div#divIMGZoom").remove();
         $("div#divIMGJSON").remove();
         $("div#divIMGDownload").remove();
+      }
 
+
+
+
+      function imgLoadDetection() {
+
+        console.log("Start imgLoadDetection()")
+        deleteMouseOverThumbnail();
 
 
 
@@ -1433,6 +1821,7 @@ File Version 2024-01-18/A1
         var index=0;
         images.forEach(function(image) {
           index++;
+
           image.setAttribute("data-index", index);
           image.setAttribute("id", "img-load-detection-"+index);
           image.setAttribute("data-max", images.length);
@@ -1455,20 +1844,17 @@ File Version 2024-01-18/A1
               })
             }  
           });
-
-
+  
+  
+  
 
 
 
           image.addEventListener("mouseover", function(evt) {
             let img=evt.target;
             if (img.dataset.error=="false") {
-              $("div#divIMGMeta").remove();
-              $("div#divIMGSize").remove();
-              $("div#divIMGZoom").remove();
-              $("div#divIMGJSON").remove();
-              $("div#divIMGDownload").remove();
-
+              deleteMouseOverThumbnail();
+              
               $('<div id="divIMGMeta">').css({
                 top: $(img).offset().top+'px',
                 left: $(img).offset().left+'px',
@@ -1502,14 +1888,6 @@ File Version 2024-01-18/A1
               .appendTo('body');
 
 
-              /*
-              $('<div id="divIMGZoom">').css({
-                top: ($(img).offset().top-5)+'px',
-                left: ($(img).offset().left+$(img).width()-40)+'px'   
-              })
-              .html("🔍").click( ()=> zoomImage(img) )
-              .appendTo('body');         
-              */
 
 
             }
@@ -1527,11 +1905,14 @@ File Version 2024-01-18/A1
 
 
       /* Return decoded JSON with all datas usable and an HTML content */
-      function decodeFooocusJSON(json) {
+      function decodeFooocusJSON(jsonSource) {
+        var json
         try {
-          json=JSON.parse(json);
+          json=JSON.parse(jsonSource);
         } catch(err) {
           console.log("Error parse JSON");
+          console.log(jsonSource);
+          let data={};
           data.html="ERROR PARSE JSON"
           return data
         }
@@ -1688,7 +2069,7 @@ File Version 2024-01-18/A1
         };
         var dateStr=new Date();  dateStr=dateStr.toISOString().substr(0,10);
         let dates=[];
-        for (let i = 0; i < 200; i++) {
+        for (let i = 0; i < nbDaysToScan; i++) {
           dates.push(addDay(dateStr, -1*i));
         }
 
@@ -1702,22 +2083,52 @@ File Version 2024-01-18/A1
             return response.text();
           })
           .then((text) => {
+            /* Count nb Images per day in log.html */
             detailDates[dt]=((text.match(/<div id=/g)|| []).length);
+            /* Parse log.html to add to allImages array */
+            let data=parseLog(text);
+            let images=data.data;
+            for (let i = 0; i < images.length; i++) {
+             let img=images[i];
+              img.dt=dt;
+              allImages.push(img);
+              if (allModels.includes(img["Base Model"])==false) {
+                allModels.push(img["Base Model"]);
+              }
+
+              img.styles=[];
+              if (img.Styles!="[]") {
+                let reg=new RegExp("(')", "g");
+                img.styles=img.Styles.replace("[","").replace(reg,"").replace("]","").split(", ");
+              }
+      
+              for (let j=0; j<img.styles.length; j++) {
+                if (allStyles.includes(img.styles[j])==false) {
+                  allStyles.push(img.styles[j]);
+                }
+              }
+            }
+
           });
         });
 
         // Resolve all the promises
         Promise.all(requests)
         .then((results) => {
+          promiseAll=true;
           new jBox('Notice', {
-            content: "Click on calendar &#128197; above to view all days with generation work.",
+            content: "Calendar &#128197; mode and Search 🔍 mode are now active.",
             theme: 'TooltipDark',
-            attributes: {x: "left", y: "top"},
+            attributes: {x: "right", y: "bottom"},
             offset: { x: 20, y: 45 }
           }); 
           $("a#nearestDate").show().click(function() {loadDay(0)})
           workingDates.sort(); /* Force sort because promise are async */
           workingDates.reverse();
+          allModels.sort();
+          logSizeInBytes("allImages", allImages);
+          logSizeInBytes("allModels", allModels);
+          logSizeInBytes("allStyles", allStyles);
           return;
         }).catch(function(err) {
           console.log(err);
@@ -1745,7 +2156,12 @@ File Version 2024-01-18/A1
 
       $(window).on("resize", () => updateImageSize());
 
-      function format_filesize(s) { return (s/1024/1024).toFixed(2)+" Mo"; }
+      function format_filesize(s) { 
+        if (s<1024) return s+" Bytes";
+        if (s<1024*1024) return (s/1024).toFixed(2)+" KBytes";
+        if (s<1024*1024*1024) return (s/1024/1024).toFixed(2)+" MBytes";
+        return (s/1024/1024/1024).toFixed(2)+" GBytes"; 
+      }
 
       function get_filesize(url, callback) {
         var xhr = new XMLHttpRequest();
@@ -1758,6 +2174,24 @@ File Version 2024-01-18/A1
         xhr.send();
       }
 
+      const getSizeInBytes = obj => {
+        let str = null;
+        if (typeof obj === 'string') {
+          // If obj is a string, then use it
+          str = obj;
+        } else {
+          // Else, make obj into a string
+          str = JSON.stringify(obj);
+        }
+        // Get the length of the Uint8Array
+        const bytes = new TextEncoder().encode(str).length;
+        return bytes;
+      };
+      
+      const logSizeInBytes = (description, obj) => {
+        const bytes = getSizeInBytes(obj);
+        console.log(`${description} is approximately ${format_filesize(bytes)} `);
+      };
 
       /* Detect if the viewer.html is loaded via iframe on Fooocus UI */
       function isIframe() {
@@ -2063,10 +2497,73 @@ File Version 2024-01-18/A1
         
       }
 
+      form#formSearch {     
+        border-radius: 5px;
+        border:#fde4fd 1px solid;
+        background-color: #ba00bd;
+      }
+
+
+      /* Search images */
+
+      div#resultBox {
+        background: #000;
+        border-radius: 5px;
+        border:1px solid #f79cf8
+      }
+
+      input, select {
+        color:#000;
+      }
+
+      input#searchText {
+        display: flex;
+      }
+
+      multi-select {
+        background: #fff;
+      }
+      div.msw-dropdown {
+        background: #fff;
+        color:#000;
+      }
+      div.msw-dropdownitem {
+        
+        cursor: pointer;
+      }
+      div.msw-dropdownitem:hover {
+        background-color: #ba00bd;
+        color:#fff;
+      }
+
+      .bg-primary {
+        background-color: #ba00bd !important;
+      }
+
+      img.responsive {
+        width: 100%;
+        height: auto;
+        max-width: 100%;
+      }
+      
+      div.imgViewer {
+        font-size: 11px;
+      }
+      div.imgViewer .fileName {
+        overflow-x: hidden;
+      }
+
+      span.pagination {
+        margin:8px;
+      }
+      button.button-pagination {
+        min-width:70px;
+        text-align: center;
+      }
 
     </style>
 
 
-<p><a href="https://github.com/toutjavascript/Fooocus-Log-Viewer/" target="_blank" class="underline p-5 text-slate-200 hover:text-slate-50 dark:hover:text-slate-300">Bug report/ideas/discussions on <svg viewBox="0 0 16 16" class="w-5 h-5 inline" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg> github.com/toutjavascript/Fooocus-Log-Viewer</a></p>
+<p class=" p-5 "><a href="https://github.com/toutjavascript/Fooocus-Log-Viewer/" target="_blank" class="underline text-slate-200 hover:text-slate-50 dark:hover:text-slate-300">Bug report/ideas/discussions on <svg viewBox="0 0 16 16" class="w-5 h-5 inline" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg> github.com/toutjavascript/Fooocus-Log-Viewer</a></p>
   </body>
 </html>
