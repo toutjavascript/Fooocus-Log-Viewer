@@ -6,6 +6,10 @@ Fooocus Log Viewer is an add-on to https://github.com/lllyasviel/Fooocus. It cre
 Click to Zoom an image
 ![Capture d’écran 2024-01-08 à 12 10 27](https://github.com/toutjavascript/Fooocus-Log-Viewer/assets/30899600/713ecc47-0cfc-4381-a4c3-49154670f962)
 
+New search box, search all your fooocus images by text, models and styles. It works well with over 10k images on SSD
+![Capture d’écran 2024-01-24 à 11 25 15](https://github.com/toutjavascript/Fooocus-Log-Viewer/assets/30899600/c852e805-6957-4cc0-b030-22fa1ca01c5f)
+
+
 ## What you can do with **Fooocus Log Viewer**
 
 Fooocus Log Viewer can be integrated in UI with auto resize to fully fill the usable screen space.
