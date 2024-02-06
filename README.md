@@ -76,6 +76,11 @@ The idea and initial work is inspired by @sngazm at https://github.com/lllyasvie
 
 ## Update log
 
+1.5.1 Fix issues opened by friendly users
+- Close issues [#11](https://github.com/toutjavascript/Fooocus-Log-Viewer/issues/11)
+- Close issues [#10](https://github.com/toutjavascript/Fooocus-Log-Viewer/issues/10)
+- Close issues [#9](https://github.com/toutjavascript/Fooocus-Log-Viewer/issues/9)
+
 1.5.0 New search box
 - Search for all images with prompt/models/styles
 - Auto-refresh with new generated images

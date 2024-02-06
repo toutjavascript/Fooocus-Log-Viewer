@@ -10,7 +10,7 @@ https://github.com/lllyasviel/Fooocus/discussions/693#discussioncomment-7853694
 Modestly updated by https://github.com/toutjavascript
                     https://www.toutjavascript.com
 
-File Version 2024-01-24/A1
+File Version 2024-02-06/A1
 -->
 
 <html lang="us">
@@ -1097,18 +1097,20 @@ File Version 2024-01-24/A1
                         ) : (
                           <>
                           {key == "Styles" ? (
-                            <div class="flex"> 
+                            <div class="flex">
                             {value.replace(/'/g, "").replace("[","").replace("]","").split(", ").map((style, i) => (
+                              style.trim() !== "" && (
                               <div class="flex-initial text-center mx-1 styleContainer">
-                              <img src={ ("/file=sdxl_styles/samples/"+style.replace(/ /g,"_")+".jpg") } class="styleImage"/>
-                              <span class="styleTitle">{style}</span> 
+                              <img src={ ("/file=sdxl_styles/samples/"+style.toLowerCase().replace(/ /g,"_")+".jpg") } class="styleImage"/>
+                              <span class="styleTitle">{style}</span>
                               </div>
-                            ))}                          
-                            </div> 
-                          ) : 
-                          (  
+                              )
+                            ))}
+                            </div>
+                          ) :
+                          (
                             value
-                          )} 
+                          )}
                           </>
                         )}
                       </span>
@@ -1281,7 +1283,8 @@ File Version 2024-01-24/A1
       const getBatchData = (data) => {
         const batchData = [];
         const isAsc = data.length < 2 || data[0].src < data[1].src;
-
+        console.log("getBatchData: data=")
+        console.log(data)
         for (let i = 0; i < data.length; i++) {
           if (i === 0 || !isSameBatch(data[i], data[i - 1])) {
             batchData.push({
@@ -1316,18 +1319,23 @@ File Version 2024-01-24/A1
               endIndex: i,
             });
             // filter out the property starting with "LoRA"
+            console.log("data["+i+"]");             console.log(data[i])
             Object.keys(data[i]).forEach((key) => {
               /* console.log("i="+i+"  key:" +key) */
-              if (key.startsWith("LoRA ")) { /* After V2.1.854 log format */
+              if (key.startsWith("crudLoras")) { /* After V2.1.854 log format */
                 try {
-                  console.log("LORA new "+data[i][key]+" / "+data[i][value]);
-                  batchData[batchData.length - 1].batchSettings.LoRAs.push({
-                    name: data[i][key].split(':')[0].trim(),
-                    weight: data[i][key].split(':')[1].trim()
-                  });
-                } catch(e) {}
+                  for (let j=0; j<data[i][key].length; j++) {
+                    const lora=data[i][key][j].split(":");
+                    console.log("LORA new "+lora[0]+" / "+lora[1]);
+                    batchData[batchData.length - 1].batchSettings.LoRAs.push({
+                      name: lora[0].trim(),
+                      weight: lora[1].trim()
+                    });
+                  }
+                } catch(e) {
+                  console.log("error get lora "+e)
+                }
               }
-
             });
           } else {
             if (batchData.length > 0) {
