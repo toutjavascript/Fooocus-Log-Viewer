@@ -75,6 +75,8 @@ The idea and initial work is inspired by @sngazm at https://github.com/lllyasvie
 
 
 ## Update log
+1.5.2 Fix issue opened and solved by friendly user
+- Close issue https://github.com/toutjavascript/Fooocus-Log-Viewer/issues/13
 
 1.5.1 Fix issues opened by friendly users
 - Close issues [#11](https://github.com/toutjavascript/Fooocus-Log-Viewer/issues/11)
