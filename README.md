@@ -63,7 +63,7 @@ The dark theme offers a better experience.
 
 ## Fooocus Version Compability
 
-This add-on is validated from V2.1.852 to V2.1.860 Fooocus version.
+This add-on is validated from V2.1.852 to V2.2.1 Fooocus version.
 
 Each Fooocus update is at risk to break the proper functionning of this script.
 
