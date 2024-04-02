@@ -1256,8 +1256,10 @@ File Version 2024-02-19/A1
             src = divs[0].innerText;
             settings.crudLoras=[];
             for (let j = 1; j < trs.length; j++) {
-              const key = trs[j].querySelector("td.key").textContent;
-              const value = trs[j].querySelector("td.value").textContent;
+              const row = trs[j];
+              const labelTd = row.querySelector("td.label");
+              const key = labelTd? labelTd.textContent : row.querySelector("td.key").textContent;
+              const value = row.querySelector("td.value").textContent;
               if (key.substr(0,4)=="LoRA") {
                 settings["crudLoras"].push(value);
               } else {
