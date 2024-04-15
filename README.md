@@ -63,7 +63,7 @@ The dark theme offers a better experience.
 
 ## Fooocus Version Compability
 
-This add-on is validated from V2.1.852 to V2.2.1 Fooocus version.
+This add-on is validated from V2.1.852 to V2.3.1 Fooocus version.
 
 Each Fooocus update is at risk to break the proper functionning of this script.
 
@@ -75,6 +75,9 @@ The idea and initial work is inspired by @sngazm at https://github.com/lllyasvie
 
 
 ## Update log
+1.5.4 Fix issue on row parsing in viewer.html 
+- https://github.com/toutjavascript/Fooocus-Log-Viewer/pull/18
+
 1.5.3 Fix issue on generated image with input image 
 - Close issue https://github.com/toutjavascript/Fooocus-Log-Viewer/issues/16
 
