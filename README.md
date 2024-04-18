@@ -38,7 +38,7 @@ Check the port number on Fooocus UI webpage
 ### 2/ Deep integration in Fooocus UI
 
 A new deep integration is available. Quite easy to config, with only one file to modify.
-You open `/modules/ui_gradio_extensions.py` file. At line 41, add :
+You open `/modules/ui_gradio_extensions.py` file. At line 43, add :
 
 ```python
 head += f'<script type="text/javascript" src="file=outputs/viewer.js"></script>\n'
@@ -75,6 +75,9 @@ The idea and initial work is inspired by @sngazm at https://github.com/lllyasvie
 
 
 ## Update log
+1.5.5 Fix issue on row parsing log.html with .jpeg generated images 
+- Close issue https://github.com/toutjavascript/Fooocus-Log-Viewer/discussions/19#discussioncomment-9139711
+
 1.5.4 Fix issue on row parsing in viewer.html 
 - https://github.com/toutjavascript/Fooocus-Log-Viewer/pull/18
 

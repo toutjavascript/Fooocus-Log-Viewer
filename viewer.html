@@ -41,7 +41,7 @@ File Version 2024-02-19/A1
     <div id="app"></div>
     <script type="text/babel">
 
-      var LOGVIEWER_RELEASE="1.5.4"
+      var LOGVIEWER_RELEASE="1.5.5" 
 
       $("span#logviewer-release").html("Release "+LOGVIEWER_RELEASE)
 
@@ -107,7 +107,7 @@ File Version 2024-02-19/A1
           if ((nb>nbTodayImages)&&(nbTodayImages>0)) {
             let n=nbTodayImages-nb;
             matches.sort();
-            let src=matches[matches.length-1].replace('<div id="',"").replace("_png",".png").replace("_jpg",".jpg").replace("_webp",".webp").replace('"',"");
+            let src=matches[matches.length-1].replace('<div id="',"").replace("_png",".png").replace("_jpg",".jpg").replace("_jpeg",".jpeg").replace("_webp",".webp").replace('"',"");
             new jBox('Notice', {
               content: "Yeah! "+n+" new Image"+(n>1?'s':'')+" generated now on today folder<br><img src='./"+today+"/"+src+"' class='imageNotice'>",
               theme: "TooltipNewImage"
@@ -1243,7 +1243,7 @@ File Version 2024-02-19/A1
         const data = [];
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
-        const images = doc.querySelectorAll("div[id$='_png'],div[id$='_jpg'],div[id$='_webp']"); 
+        const images = doc.querySelectorAll("div[id$='_png'],div[id$='_jpg'],div[id$='_jpeg'],div[id$='_webp']"); 
         for (let i = 0; i < images.length; i++) {
           const paragraphs = images[i].querySelectorAll("p");
           const divs = images[i].querySelectorAll("div");
@@ -1255,7 +1255,7 @@ File Version 2024-02-19/A1
             /* From v2.1.852 (2023-12-18), log changed to <table> tag */ 
             src = divs[0].innerText;
             settings.crudLoras=[];
-            for (let j = 1; j < trs.length; j++) {
+            for (let j = 1; j < trs.length; j++) { 
               const row = trs[j];
               const labelTd = row.querySelector("td.label");
               const key = labelTd? labelTd.textContent : row.querySelector("td.key").textContent;
