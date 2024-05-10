@@ -75,6 +75,9 @@ The idea and initial work is inspired by @sngazm at https://github.com/lllyasvie
 
 
 ## Update log
+1.5.6 Fix issue on search 
+- Close issue https://github.com/toutjavascript/Fooocus-Log-Viewer/discussions/21
+
 1.5.5 Fix issue on row parsing log.html with .jpeg generated images 
 - Close issue https://github.com/toutjavascript/Fooocus-Log-Viewer/discussions/19#discussioncomment-9139711
 

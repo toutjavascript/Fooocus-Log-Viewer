@@ -41,7 +41,7 @@ File Version 2024-02-19/A1
     <div id="app"></div>
     <script type="text/babel">
 
-      var LOGVIEWER_RELEASE="1.5.5" 
+      var LOGVIEWER_RELEASE="1.5.6" 
 
       $("span#logviewer-release").html("Release "+LOGVIEWER_RELEASE)
 
@@ -2147,7 +2147,7 @@ File Version 2024-02-19/A1
               let img=images[i];
               img.dt=dt;
               /* Check if the image is generated with a prompt and not with input image */
-              if (data.Prompt) {
+              if (img.Prompt) {
                 allImages.push(img);
                 if (allModels.includes(img["Base Model"])==false) {
                   allModels.push(img["Base Model"]);
