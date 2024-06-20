@@ -1527,10 +1527,10 @@ File Version 2024-02-19/A1
         const [aLoRAKeys, bLoRAKeys] = [a, b].map((item) =>
           Object.keys(item).filter((key) => key.startsWith("LoRA ["))
         );
-        const [aLoRAs, bLoRAs] = [aLoRAKeys, bLoRAKeys].map((keys) =>
+        const [aLoRAs, bLoRAs] = [{obj: a, keys: aLoRAKeys}, {obj: b, keys: bLoRAKeys}].map(({obj, keys}) =>
           keys.map((key) => {
             const LoRAName = key.split("]")[0].replace("[", "");
-            const LoRAWeight = a[key];
+            const LoRAWeight = obj[key];
             return { LoRAName, LoRAWeight };
           })
         );
